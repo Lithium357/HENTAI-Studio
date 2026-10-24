@@ -1,0 +1,54 @@
+{
+  "schema_version": 1,
+  "workload_type": "llm.causal",
+  "mode": "lora",
+  "run_dir": "/mnt/d/HENTAI-Data/runs/llm/erp-qwen3-4b-cpt-bench-aotriton",
+  "seed": 42,
+  "dataset": {
+    "root": "/mnt/d/ERP-LLM/data/raw/sdsr--erp-and-erotica",
+    "schema": "text",
+    "packed_cache": "/mnt/d/HENTAI-Data/caches/llm/erp-qwen3-4b-512-v1",
+    "validation_fraction": 0.01,
+    "context_length": 512,
+    "packing": true,
+    "num_workers": 0
+  },
+  "tokenizer": {
+    "mode": "base_model",
+    "base_model": "/mnt/d/ERP-LLM/models/Qwen3-4B-Base"
+  },
+  "model": {
+    "architecture": "llama",
+    "hidden_size": 2560,
+    "intermediate_size": 9728,
+    "num_hidden_layers": 36,
+    "num_attention_heads": 32,
+    "num_key_value_heads": 8,
+    "max_position_embeddings": 40960,
+    "base_model": "/mnt/d/ERP-LLM/models/Qwen3-4B-Base",
+    "lora_rank": 16,
+    "lora_alpha": 32,
+    "lora_dropout": 0.05
+  },
+  "training": {
+    "micro_batch_size": 1,
+    "gradient_accumulation": 16,
+    "learning_rate": 0.0001,
+    "weight_decay": 0.01,
+    "warmup_steps": 100,
+    "max_steps": 250,
+    "mixed_precision": "bf16",
+    "gradient_checkpointing": true,
+    "max_grad_norm": 1.0
+  },
+  "checkpointing": {
+    "weights_every": 500,
+    "resume_every": 500,
+    "keep_weights": 2,
+    "keep_resume": 2
+  },
+  "evaluation": {
+    "every": 100,
+    "max_batches": 32
+  }
+}

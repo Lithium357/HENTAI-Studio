@@ -1,0 +1,27 @@
+[build-system]
+requires = ["setuptools>=69", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "hentai-studio"
+version = "0.2.0"
+description = "Local HENTAI control room, telemetry, and causal-LM workloads"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = ["scratchtag-diffusion>=0.2,<0.3"]
+
+[project.optional-dependencies]
+llm = ["torch>=2.5", "peft>=0.20,<0.21", "tokenizers>=0.22,<0.23", "transformers>=4.57,<5", "accelerate>=1.10,<2", "safetensors>=0.4,<1"]
+dev = ["pytest>=8,<10"]
+
+[project.scripts]
+hentai-studio = "hentai_studio.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+hentai_studio = ["dashboard_static/*", "bin/*.exe"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
