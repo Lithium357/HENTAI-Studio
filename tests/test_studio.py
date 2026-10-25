@@ -25,12 +25,12 @@ def test_legacy_dashboard_registry_uses_same_run_discovery_contract(tmp_path):
 def test_dashboard_assets_define_separate_diffusion_and_llm_workspaces():
     root = Path(__file__).parents[1] / "src" / "hentai_studio" / "dashboard_static"
     markup = (root / "index.html").read_text(encoding="utf-8")
-    script = (root / "app.js").read_text(encoding="utf-8")
+    script = "\n".join(path.read_text(encoding="utf-8") for path in root.glob("*.js"))
     assert 'data-workspace="diffusion"' in markup
     assert 'data-workspace="llm"' in markup
     assert 'id="llmWorkspace"' in markup
     assert 'id="llmChatTranscript"' in markup
-    assert 'fetch("/api/v1/runs"' in script
+    assert 'requestJSON("/api/v1/runs"' in script
     assert '/chat`' in script
     assert 'CPU ONLY' in script
     assert 'selectedStatus?.state' in script

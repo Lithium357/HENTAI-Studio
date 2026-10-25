@@ -72,11 +72,11 @@ While VAE training is active, **Current training run** changes the sample panel 
 2. A random dataset record is selected.
 3. The loader performs the same resize/crop behavior as training, with random flipping disabled.
 4. The VAE encodes using posterior mode and decodes the latent.
-5. The reconstruction is resized to 1080 Ã— 1080 for display.
+5. The reconstruction is resized to 1080 × 1080 for display.
 
 The output is a reconstruction, not a generated image. It demonstrates what information the VAE preserves. The source record is not copied into the dashboard gallery.
 
-Before the first checkpoint, the button shows the next checkpoint step and estimated wait. It is disabled because there is no saved model to loadâ€”not because the interface is stuck.
+Before the first checkpoint, the button shows the next checkpoint step and estimated wait. It is disabled because there is no saved model to load—not because the interface is stuck.
 
 ## Diffuser samples
 
@@ -86,8 +86,8 @@ Controls:
 
 - **Tags:** comma-separated conditioning tokens.
 - **Seed:** fixes initial latent noise for reproducible comparisons.
-- **Steps:** DDIM denoising iterations, clamped to 5â€“60.
-- **Guidance:** classifier-free guidance, clamped to 1â€“12.
+- **Steps:** DDIM denoising iterations, clamped to 5–60.
+- **Guidance:** classifier-free guidance, clamped to 1–12.
 
 Use the same tags and seed across checkpoints to judge learning. High guidance is not automatically better; it can crush color range, exaggerate artifacts, and reduce diversity.
 

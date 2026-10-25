@@ -17,6 +17,7 @@ __pycache__/
 /hardware_probe/target/
 /dist/
 /build/
+node_modules/
 /.dotnet-home/
 **/bin/
 **/obj/

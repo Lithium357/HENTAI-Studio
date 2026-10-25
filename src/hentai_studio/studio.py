@@ -1,10 +1,6 @@
 from __future__ import annotations
 
-import json
-from http import HTTPStatus
-from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
-from urllib.parse import unquote, urlparse
 
 from .core.run_registry import RunRegistry
 from .core.storage import StorageRoots
@@ -18,8 +14,7 @@ class StudioService:
     """Workload-neutral, dependency-light API service.
 
     It intentionally does not import Torch, Transformers, or the legacy dashboard.
-    Legacy dashboard routes remain served by ``scratchtag dashboard`` during the
-    migration; this service is the stable starting point for new multi-run UI.
+    The dashboard and API-only server share this service and the same routes.
     """
 
     def __init__(self, project: Path, storage_root: Path) -> None:
@@ -88,55 +83,9 @@ class StudioService:
                 self.llm_chat.unload()
 
 
+
 def run_studio(project: str | Path, storage_root: str | Path, host: str = "127.0.0.1", port: int = 7861) -> None:
-    service = StudioService(Path(project), Path(storage_root))
+    from .web.application import StudioApplication
+    from .web.server import serve
 
-    class Handler(BaseHTTPRequestHandler):
-        server_version = "HENTAIStudio/2.0"
-
-        def log_message(self, format: str, *args: object) -> None:
-            return
-
-        def send_json(self, payload: object, status: HTTPStatus = HTTPStatus.OK) -> None:
-            encoded = json.dumps(payload).encode("utf-8")
-            self.send_response(status)
-            self.send_header("Content-Type", "application/json; charset=utf-8")
-            self.send_header("Content-Length", str(len(encoded)))
-            self.send_header("Cache-Control", "no-store")
-            self.send_header("X-Content-Type-Options", "nosniff")
-            self.end_headers()
-            self.wfile.write(encoded)
-
-        def do_GET(self) -> None:
-            parts = [unquote(part) for part in urlparse(self.path).path.split("/") if part]
-            try:
-                if parts == ["api", "v1", "runs"]:
-                    self.send_json({"runs": service.runs()})
-                elif parts == ["api", "v1", "storage"]:
-                    self.send_json(service.storage_status())
-                elif len(parts) == 5 and parts[:3] == ["api", "v1", "runs"] and parts[4] == "status":
-                    self.send_json(service.status(parts[3]))
-                elif len(parts) == 5 and parts[:3] == ["api", "v1", "runs"] and parts[4] == "checkpoints":
-                    self.send_json({"checkpoints": service.checkpoints(parts[3])})
-                else:
-                    self.send_json({"error": "not found"}, HTTPStatus.NOT_FOUND)
-            except ValueError as error:
-                self.send_json({"error": str(error)}, HTTPStatus.BAD_REQUEST)
-
-        def do_POST(self) -> None:
-            parts = [unquote(part) for part in urlparse(self.path).path.split("/") if part]
-            if len(parts) != 5 or parts[:3] != ["api", "v1", "runs"] or parts[4] != "chat":
-                self.send_json({"error": "not found"}, HTTPStatus.NOT_FOUND)
-                return
-            if int(self.headers.get("Content-Length", "0")) > 131_072:
-                self.send_json({"error": "request too large"}, HTTPStatus.REQUEST_ENTITY_TOO_LARGE)
-                return
-            try:
-                payload = json.loads(self.rfile.read(int(self.headers.get("Content-Length", "0"))) or b"{}")
-                self.send_json(service.chat(parts[3], payload.get("messages", []), int(payload.get("maxNewTokens", 256))))
-            except (ValueError, OSError, json.JSONDecodeError) as error:
-                self.send_json({"error": str(error)}, HTTPStatus.BAD_REQUEST)
-
-    server = ThreadingHTTPServer((host, port), Handler)
-    print(f"HENTAI Studio API: http://localhost:{port}", flush=True)
-    server.serve_forever()
+    serve(StudioApplication(StudioService(Path(project), Path(storage_root))), host, port)

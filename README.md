@@ -66,6 +66,7 @@ The bundled telemetry executable is installed with the Python package. Its Rust 
 - [Dashboard](docs/DASHBOARD.md)
 - [CLI](docs/CLI.md)
 - [Development](docs/DEVELOPMENT.md)
+- [Dashboard architecture](docs/ARCHITECTURE.md)
 - [LLM dataset contract](docs/LLM_DATASET.md)
 - [LLM training](docs/LLM_TRAINING.md)
 - [LLM throughput plan](docs/LLM_THROUGHPUT_PLAN.md)

@@ -50,7 +50,7 @@ class DashboardCheckpointCatalogTests(unittest.TestCase):
             self.make_checkpoint(root, "previous-run", 114000)
             state = self.make_state(root)
             fake_process = type("FakeProcess", (), {"poll": lambda self: None})()
-            with patch("hentai_studio.dashboard.subprocess.Popen", return_value=fake_process) as popen:
+            with patch("hentai_studio.dashboard_app.sampling.subprocess.Popen", return_value=fake_process) as popen:
                 state.generate_sample(
                     {
                         "source": "historical",
@@ -73,9 +73,12 @@ class DashboardCheckpointCatalogTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             state = self.make_state(root)
+            scripts = root / "scripts"
+            scripts.mkdir()
+            (scripts / "train_scratch_v2_watchdog.sh").write_text('PROJECT="${HENTAI_PROJECT}"\nCONFIG="${HENTAI_CONFIG}"\n')
             with patch.object(DashboardState, "trainer_pids", return_value=[]), \
                  patch.object(DashboardState, "watchdog_pids", return_value=[]), \
-                 patch("hentai_studio.dashboard.subprocess.Popen") as popen:
+                 patch("hentai_studio.dashboard_app.controls.subprocess.Popen") as popen:
                 state.resume()
             kwargs = popen.call_args.kwargs
             self.assertEqual(kwargs["cwd"], root)
