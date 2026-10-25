@@ -4,9 +4,9 @@ HENTAI is the diffusion engine. HENTAI Studio is the dashboard application that 
 
 ```mermaid
 flowchart TD
-  Browser[ES module frontend] --> Web[Shared HTTP application]
+  Browser[ES module frontend] --> Web[FastAPI routers and typed schemas]
   Desktop[Windows WebView2 shell] --> Browser
-  Web --> Studio[StudioService: workload API]
+  Web --> Studio[RunService: run registry and chat]
   Web --> Dashboard[DashboardState: diffusion facade]
   Dashboard --> Progress[ProgressReader]
   Dashboard --> Catalog[CheckpointCatalog]
@@ -24,7 +24,9 @@ flowchart TD
 
 `dashboard_app/processes.py` identifies trainers by the selected config or run directory and watchdogs by engine project and config. Stop signals only selected trainers and their worker descendants. Studio does not signal an entire shell process group. Resume passes the selected project/config to portable watchdogs; legacy fixed-path watchdogs are accepted only when their project, reference profile, and run match the selection. An incompatible script leaves training paused and returns an actionable error.
 
-`web/application.py` contains transport-independent routing, JSON validation, downloads, and confined static/sample lookup. `web/server.py` provides bounded request reads and HTTP response encoding. Both dashboard mode and API-only mode use these same versioned routes. Invalid bodies and control errors return JSON errors. The dashboard still serves `/api/status`, `/api/action`, checkpoint catalogs, PNG samples, and CSV downloads for compatibility.
+`api/app.py` constructs the FastAPI application and mounts its resource routers. `api/schemas.py` defines the request/response contracts; `api/routes/` groups system, run, and configured-diffusion endpoints. `api/services/` implements operations and maps expected domain failures to explicit errors. Dependencies are supplied through `api/dependencies.py`. `api/errors.py` owns the shared error format. The small ASGI middleware handles only body limits and response headers; Uvicorn handles HTTP framing. There is no custom path dispatcher or generic action payload.
+
+Both server modes expose the same schema at `/api/openapi.json` and documentation at `/api/docs`. The API uses snake_case fields, collection `items`, workload-qualified run IDs, explicit training commands, and a retained sampling-job result. Status, checkpoint catalogs, and galleries are separate resources. Old routes are removed. See [API reference](API.md).
 
 Model libraries remain lazy imports. Serving metadata, assets, progress, and run lists does not import Torch, Transformers, Diffusers, or PEFT.
 
@@ -48,4 +50,4 @@ Charts position points using actual optimizer steps. Invalid points are omitted 
 
 ## Verification
 
-Python tests cover service behavior, existing LLM lifecycle, checkpoint confinement, selected-run process discovery, resume arguments, shared routes, malformed input, and static modules. Node tests exercise chart geometry, request cancellation/error handling, escaping, and polling. The browser fixture exercises the real module graph and HTTP server with synthetic data, including sampling submission, chat pending state, run-switch races, reconnect, and mobile overflow. It never loads production models or signals real trainers.
+Python tests cover service behavior, existing LLM lifecycle, checkpoint confinement, selected-run process discovery, resume arguments, typed resource routes, request validation, error semantics, and static modules. Node tests exercise chart geometry, request cancellation/error handling, escaping, and polling. The browser fixture exercises the real module graph and HTTP server with synthetic data, including sampling submission, chat pending state, run-switch races, reconnect, and mobile overflow. It never loads production models or signals real trainers.

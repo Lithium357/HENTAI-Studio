@@ -29,3 +29,7 @@ The legacy `scratchtag dashboard`, `scratchtag studio`, and `scratchtag llm-*` c
 Studio's diffusion adapter validates configs through `scratchtag.config.load_config` and reads the existing run/checkpoint files. Sampling uses `python -m scratchtag.tools.vae_snapshot`, `python -m scratchtag.tools.diffusion_checkpoint_sample`, or `python -m scratchtag.tools.sdxl_checkpoint_sample` with the Studio interpreter. Resume uses the engine's watchdog scripts. Static assets and the hardware executable resolve from the installed Studio package, never the engine checkout.
 
 The original `scripts/*checkpoint_sample.py` and `scripts/vae_snapshot.py` paths remain compatibility wrappers in HENTAI. They delegate to the installed engine modules.
+
+## Studio 0.3 API rewrite
+
+Studio 0.3 uses FastAPI/Uvicorn and the resource API documented in [API.md](API.md). Reinstall Studio's updated dependencies when upgrading. The old `/api/v1`, generic `/api/action`, and legacy dashboard/download URLs are removed rather than redirected. The bundled frontend is updated with the API. External clients should use the generated `/api/openapi.json` schema. This HTTP rewrite does not change engine configs, datasets, run metadata, or checkpoint files.

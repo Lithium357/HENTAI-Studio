@@ -8,9 +8,9 @@ Allow HENTAI Studio to generate from an explicitly selected historical diffusion
 
 ## Implemented contract
 
-- `GET /api/checkpoint-catalog` returns compatible historical runs and diffusion checkpoints.
+- `GET /api/diffusion/checkpoints` returns compatible historical runs and diffusion checkpoints.
 - The generation panel provides run and checkpoint selectors.
-- `POST /api/action` with `action: "sample"` accepts a catalog run ID and checkpoint ID.
+- `POST /api/diffusion/samples` with `source: "checkpoint"` accepts a catalog run ID and checkpoint ID.
 - Backend selection is confined to the project `runs/` directory; arbitrary paths and traversal are rejected.
 - Current-run VAE reconstruction behavior remains available while the current stage is VAE.
 - Historical diffusion generation runs on CPU so active GPU training is not disturbed.

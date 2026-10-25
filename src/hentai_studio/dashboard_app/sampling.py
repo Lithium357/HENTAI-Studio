@@ -8,10 +8,22 @@ import threading
 import time
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Literal
+from urllib.parse import quote
 
 if TYPE_CHECKING:
     from .state import DashboardState
+
+
+@dataclass(frozen=True, slots=True)
+class SampleOptions:
+    source: Literal["current", "checkpoint"] = "current"
+    run_id: str | None = None
+    checkpoint_id: str | None = None
+    tags: tuple[str, ...] = ()
+    seed: int = 357
+    steps: int = 20
+    guidance: float = 5.0
 
 
 @dataclass(slots=True)
@@ -20,6 +32,9 @@ class SamplingJobs:
     sample_job: subprocess.Popen[bytes] | None = None
     lock: threading.Lock = field(default_factory=threading.Lock)
     sample_started: float | None = None
+    sample_finished: float | None = None
+    exit_code: int | None = None
+    job_status: str = "idle"
 
     def samples(self) -> list[dict[str, object]]:
         self.context.sample_dir.mkdir(parents=True, exist_ok=True)
@@ -34,32 +49,32 @@ class SamplingJobs:
         return [
             {
                 "name": path.name,
-                "url": f"/samples/{path.name}",
-                "modifiedAt": path.stat().st_mtime,
-                "size": path.stat().st_size,
+                "url": f"/api/diffusion/samples/{quote(path.name, safe='')}",
+                "modified_at": path.stat().st_mtime,
+                "size_bytes": path.stat().st_size,
             }
             for path in files[:12]
         ]
 
-    def generate_sample(self, payload: dict[str, object]) -> None:
+    def start(self, options: SampleOptions) -> None:
         with self.lock:
             if self.sample_job is not None and self.sample_job.poll() is None:
                 raise RuntimeError("a sample is already being generated")
-            tags = str(payload.get("tags", "1girl,solo,looking_at_viewer,smile,portrait"))
-            steps = min(60, max(5, int(payload.get("steps", 20))))
-            guidance = min(12.0, max(1.0, float(payload.get("guidance", 5.0))))
-            historical = str(payload.get("source", "current")) == "historical"
+            tags = ",".join(options.tags)
+            steps = options.steps
+            guidance = options.guidance
+            historical = options.source == "checkpoint"
             vae_active = (
                 not historical
                 and not self.context.is_sdxl_lora
                 and not (self.context.run_dir / "models" / "vae").is_dir()
             )
-            seed = secrets.randbits(63) if vae_active else int(payload.get("seed", 357))
+            seed = secrets.randbits(63) if vae_active else options.seed
             selected_run: Path | None = None
             selected_checkpoint: Path | None = None
             if historical:
                 selected_run, selected_checkpoint = self.context.resolve_historical_checkpoint(
-                    str(payload.get("runId", "")), str(payload.get("checkpointId", ""))
+                    options.run_id, options.checkpoint_id
                 )
                 checkpoint_step = int(selected_checkpoint.name.split("-")[-1])
             else:
@@ -105,6 +120,7 @@ class SamplingJobs:
                 ]
                 if selected_checkpoint is not None:
                     command.extend(["--checkpoint", str(selected_checkpoint)])
+            self.context.sample_dir.mkdir(parents=True, exist_ok=True)
             self.sample_job = subprocess.Popen(
                 command,
                 cwd=self.context.project,
@@ -115,10 +131,25 @@ class SamplingJobs:
                 start_new_session=True,
             )
             self.sample_started = time.time()
+            self.sample_finished = None
+            self.exit_code = None
+            self.job_status = "running"
+
+    def status(self) -> dict[str, object]:
+        with self.lock:
+            if self.sample_job is not None:
+                code = self.sample_job.poll()
+                if code is not None:
+                    self.exit_code = code
+                    self.job_status = "succeeded" if code == 0 else "failed"
+                    self.sample_finished = time.time()
+                    self.sample_job = None
+            return {
+                "status": self.job_status,
+                "started_at": self.sample_started,
+                "finished_at": self.sample_finished,
+                "exit_code": self.exit_code,
+            }
 
     def is_running(self) -> bool:
-        with self.lock:
-            if self.sample_job is not None and self.sample_job.poll() is not None:
-                self.sample_job = None
-                self.sample_started = None
-            return self.sample_job is not None
+        return self.status()["status"] == "running"

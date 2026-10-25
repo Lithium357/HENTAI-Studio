@@ -23,7 +23,7 @@ class DiffusionAdapter:
         return RunDescription(run_dir.name, run_dir.name.replace("-", " ").title(), self.workload_type, run_dir, "legacy", True)
 
     def status(self, run_dir: Path) -> dict[str, object]:
-        return {"state": "legacy", "runDir": str(run_dir), "workloadType": self.workload_type}
+        return {"state": "legacy", "run_dir": str(run_dir), "workload_type": self.workload_type}
 
     def checkpoints(self, run_dir: Path) -> list[CheckpointInfo]:
         result: list[CheckpointInfo] = []

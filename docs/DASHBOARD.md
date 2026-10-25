@@ -15,7 +15,7 @@ Managed causal-LM runs are discovered beneath `<storage-root>/runs/llm`. The LLM
 - Process-scoped CPU/RAM and AMD GPU telemetry for the selected run
 - CPU-only chat against the newest complete LoRA weights checkpoint
 
-The chat path deliberately unloads its CPU-resident model after a response when GPU training is active, preventing a 4B checkpoint probe from consuming host RAM indefinitely. The LLM API is versioned under `/api/v1`; legacy diffusion routes remain unchanged.
+The chat path deliberately unloads its CPU-resident model after a response when GPU training is active, preventing a 4B checkpoint probe from consuming host RAM indefinitely. The API is grouped under `/api/runs` and `/api/diffusion`, with typed contracts and generated docs at `/api/docs`. Chat availability comes from the run capability response.
 
 ## Mental model
 
@@ -164,15 +164,6 @@ If a dashboard is already listening on port 7860, the app connects to it and doe
 
 ## API summary
 
-The local service exposes:
-
-| Endpoint | Purpose |
-|---|---|
-| `GET /api/status` | Complete dashboard snapshot |
-| `GET /api/checkpoint-catalog` | Compatible historical checkpoints |
-| `GET /progress/vae.csv` | VAE CSV download |
-| `GET /progress/diffuser.csv` | Diffuser CSV download |
-| `GET /samples/<name>.png` | Dashboard gallery image |
-| `POST /api/action` | Stop, resume, sample, or start diffusion |
+The dashboard uses the typed Studio API under `/api`. Open `/api/docs` for interactive documentation, or read the [API reference](API.md). The main resources are run details and checkpoints, configured-diffusion status, historical checkpoint catalogs, samples and sampling status, explicit training commands, and progress downloads.
 
 The API is local and unauthenticated. Do not publish it directly to the internet.

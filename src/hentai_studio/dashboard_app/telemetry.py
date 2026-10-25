@@ -121,28 +121,28 @@ class Telemetry:
         try:
             energy_file.parent.mkdir(parents=True, exist_ok=True)
             temporary = energy_file.with_suffix(".tmp")
-            temporary.write_text(json.dumps({"kwh": self.energy_kwh, "updatedAt": time.time()}))
+            temporary.write_text(json.dumps({"kwh": self.energy_kwh, "updated_at": time.time()}))
             temporary.replace(energy_file)
         except OSError:
             pass
 
         metrics: dict[str, object] = {
             "available": bool(roots),
-            "cpuUsagePct": cpu_pct,
-            "cpuRamBytes": rss_bytes if roots else None,
-            "cpuRamTotalBytes": mem_total or None,
-            "cpuTempC": None,
-            "cpuPackagePowerW": cpu_package_w,
-            "gpuUsagePct": gpu.get("gpu_usage_pct") if roots else None,
-            "gpuVramBytes": int(gpu["gpu_vram_mb"]) * 1024 * 1024 if roots and gpu.get("gpu_vram_mb") is not None else None,
-            "gpuVramTotalBytes": 16 * 1024**3,
-            "gpuTempC": gpu.get("gpu_temp_c") if roots else None,
-            "gpuHotspotC": gpu.get("gpu_hotspot_c") if roots else None,
-            "gpuFanRpm": gpu.get("gpu_fan_rpm") if roots else None,
-            "gpuBoardPowerW": board_power,
-            "workloadPowerW": workload_w,
-            "energyKwh": self.energy_kwh,
-            "scopeNote": "GPU sensors are attributed while the trainer owns the compute workload; CPU and RAM are the trainer process tree.",
+            "cpu_usage_pct": cpu_pct,
+            "cpu_ram_bytes": rss_bytes if roots else None,
+            "cpu_ram_total_bytes": mem_total or None,
+            "cpu_temp_c": None,
+            "cpu_package_power_w": cpu_package_w,
+            "gpu_usage_pct": gpu.get("gpu_usage_pct") if roots else None,
+            "gpu_vram_bytes": int(gpu["gpu_vram_mb"]) * 1024 * 1024 if roots and gpu.get("gpu_vram_mb") is not None else None,
+            "gpu_vram_total_bytes": 16 * 1024**3,
+            "gpu_temp_c": gpu.get("gpu_temp_c") if roots else None,
+            "gpu_hotspot_c": gpu.get("gpu_hotspot_c") if roots else None,
+            "gpu_fan_rpm": gpu.get("gpu_fan_rpm") if roots else None,
+            "gpu_board_power_w": board_power,
+            "workload_power_w": workload_w,
+            "energy_kwh": self.energy_kwh,
+            "scope_note": "GPU sensors are attributed while the trainer owns the compute workload; CPU and RAM are the trainer process tree.",
         }
         with self.lock:
             self.hardware_cache = metrics

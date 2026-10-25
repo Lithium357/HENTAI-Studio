@@ -9,7 +9,7 @@ const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
 
 test("chart positions reflect actual steps, including sparse validation", () => {
   const result = chartGeometry([
-    {step: 0, loss: 3}, {step: 1, loss: 2, evalLoss: 2.5}, {step: 10, loss: 1, evalLoss: 1.5},
+    {step: 0, loss: 3}, {step: 1, loss: 2, eval_loss: 2.5}, {step: 10, loss: 1, eval_loss: 1.5},
   ], 120, 100, 10);
   assert.match(result.line, /L20\.0,/);
   assert.match(result.line, /L110\.0,/);
@@ -32,10 +32,10 @@ test("API reports server errors and encodes selected run IDs", async t => {
   let requested;
   t.mock.method(globalThis, "fetch", async (path, options) => {
     requested = {path, options};
-    return {ok: false, status: 400, json: async () => ({error: "checkpoint incomplete"})};
+    return {ok: false, status: 400, json: async () => ({error: {code: "checkpoint_incomplete", message: "checkpoint incomplete"}})};
   });
-  await assert.rejects(api.runStatus("run/name"), /checkpoint incomplete/);
-  assert.equal(requested.path, "/api/v1/runs/run%2Fname/status");
+  await assert.rejects(api.runs.get("llm.causal:run/name"), /checkpoint incomplete/);
+  assert.equal(requested.path, "/api/runs/llm.causal%3Arun%2Fname");
   assert.equal(requested.options.cache, "no-store");
 });
 
@@ -44,7 +44,7 @@ test("API propagates cancellation to the underlying fetch", async t => {
     signal.addEventListener("abort", () => reject(signal.reason), {once: true});
   }));
   const controller = new AbortController();
-  const request = requestJSON("/api/status", {signal: controller.signal});
+  const request = requestJSON("/api/diffusion/status", {signal: controller.signal});
   controller.abort();
   await assert.rejects(request, {name: "AbortError"});
 });

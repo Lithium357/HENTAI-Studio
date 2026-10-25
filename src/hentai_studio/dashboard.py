@@ -15,11 +15,12 @@ def run_dashboard(
     port: int = 7860,
     storage_root: str | Path = "/mnt/d/HENTAI-Data",
 ) -> None:
-    from .studio import StudioService
-    from .web.application import StudioApplication
-    from .web.server import serve
+    from .api.app import create_app
+    from .api.services.runs import RunService
+    from .api.services.diffusion import DiffusionService
+    from .api.server import serve
 
     project = Path(project).resolve()
     state = DashboardState(project, Path(config), project / "dashboard_samples")
-    app = StudioApplication(StudioService(project, Path(storage_root)), state)
+    app = create_app(RunService(project, Path(storage_root)), DiffusionService(state))
     serve(app, host, port)

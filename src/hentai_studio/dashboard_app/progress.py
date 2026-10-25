@@ -63,18 +63,18 @@ class ProgressReader:
                 "total": total,
                 "percent": step / total * 100 if total else 0,
                 "loss": loss,
-                "secondsPerStep": seconds,
-                "paceWindow": len(timing_window),
-                "imagesPerSecond": (
+                "seconds_per_step": seconds,
+                "pace_window": len(timing_window),
+                "images_per_second": (
                     int(self.context.raw_config.get("batch_size", 1))
                     * int(self.context.raw_config.get("gradient_accumulation", 1))
                     / seconds
                     if seconds
                     else 0
                 ),
-                "etaSeconds": max(0, total - step) * seconds,
+                "eta_seconds": max(0, total - step) * seconds,
                 "log": log.name,
-                "updatedAt": log.stat().st_mtime,
+                "updated_at": log.stat().st_mtime,
             },
             history,
         )

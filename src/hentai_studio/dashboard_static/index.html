@@ -6,7 +6,7 @@
     <meta name="theme-color" content="#0b0d10" />
     <title>HENTAI Studio</title>
     <meta name="description" content="HENTAI Studio — local dashboard for diffusion and language-model training." />
-    <link rel="stylesheet" href="/styles.css" />
+    <link rel="stylesheet" href="/assets/styles.css" />
   </head>
   <body>
     <div class="shell">
@@ -64,8 +64,8 @@
             </div>
             <div class="progress-downloads">
               <span>EXPORT TRAINING DATA</span>
-              <a class="download-button" href="/progress/vae.csv" download>Download VAE CSV</a>
-              <a class="download-button" href="/progress/diffuser.csv" download>Download Diffuser CSV</a>
+              <a class="download-button" href="/api/diffusion/progress/vae.csv" download>Download VAE CSV</a>
+              <a class="download-button" href="/api/diffusion/progress/diffusion.csv" download>Download Diffuser CSV</a>
             </div>
           </article>
 
@@ -222,6 +222,6 @@
       <footer><span>HENTAI Studio</span><span id="refreshLabel">Refreshing…</span><span>Localhost only</span></footer>
     </div>
     <div class="toast" id="toast" role="status" aria-live="polite"></div>
-    <script type="module" src="/app.js"></script>
+    <script type="module" src="/assets/app.js"></script>
   </body>
 </html>

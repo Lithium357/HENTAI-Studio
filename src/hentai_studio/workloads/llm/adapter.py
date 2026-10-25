@@ -39,7 +39,7 @@ class CausalLLMAdapter:
                 for raw in csv.DictReader(handle):
                     try:
                         eval_loss = raw.get("eval_loss")
-                        rows.append({"step": int(raw["step"]), "totalSteps": int(raw.get("total_steps") or 0), "loss": float(raw["train_loss"]), "evalLoss": float(eval_loss) if eval_loss else None, "secondsPerStep": float(raw.get("seconds_per_step") or 0), "tokensPerSecond": float(raw.get("tokens_per_second") or 0), "tokensSeen": int(raw.get("tokens_seen") or 0)})
+                        rows.append({"step": int(raw["step"]), "total_steps": int(raw.get("total_steps") or 0), "loss": float(raw["train_loss"]), "eval_loss": float(eval_loss) if eval_loss else None, "seconds_per_step": float(raw.get("seconds_per_step") or 0), "tokens_per_second": float(raw.get("tokens_per_second") or 0), "tokens_seen": int(raw.get("tokens_seen") or 0)})
                     except (KeyError, TypeError, ValueError):
                         continue
         latest = rows[-1] if rows else {}
@@ -99,19 +99,19 @@ class CausalLLMAdapter:
         workload_power = (float(gpu_power) if gpu_power is not None else 0.0) + (cpu_power or 0.0) if running else None
         hardware = {
             "available": running,
-            "cpuUsagePct": cpu_usage if running else None,
-            "cpuRamBytes": rss if running else None,
-            "cpuRamTotalBytes": os.sysconf("SC_PAGE_SIZE") * os.sysconf("SC_PHYS_PAGES") if hasattr(os, "sysconf") else None,
-            "gpuUsagePct": gpu.get("gpu_usage_pct") if running else None,
-            "gpuVramBytes": int(gpu["gpu_vram_mb"]) * 1024 * 1024 if running and gpu.get("gpu_vram_mb") is not None else None,
-            "gpuVramTotalBytes": 16 * 1024**3,
-            "gpuTempC": gpu.get("gpu_temp_c") if running else None,
-            "gpuHotspotC": gpu.get("gpu_hotspot_c") if running else None,
-            "gpuFanRpm": gpu.get("gpu_fan_rpm") if running else None,
-            "workloadPowerW": workload_power,
-            "scopeNote": "CPU/RAM are attributed to the selected LLM trainer. Workload power is GPU board power plus a CPU-load estimate; WSL does not expose a reliable CPU package-power sensor." if running else "No active LLM trainer is registered for this run.",
+            "cpu_usage_pct": cpu_usage if running else None,
+            "cpu_ram_bytes": rss if running else None,
+            "cpu_ram_total_bytes": os.sysconf("SC_PAGE_SIZE") * os.sysconf("SC_PHYS_PAGES") if hasattr(os, "sysconf") else None,
+            "gpu_usage_pct": gpu.get("gpu_usage_pct") if running else None,
+            "gpu_vram_bytes": int(gpu["gpu_vram_mb"]) * 1024 * 1024 if running and gpu.get("gpu_vram_mb") is not None else None,
+            "gpu_vram_total_bytes": 16 * 1024**3,
+            "gpu_temp_c": gpu.get("gpu_temp_c") if running else None,
+            "gpu_hotspot_c": gpu.get("gpu_hotspot_c") if running else None,
+            "gpu_fan_rpm": gpu.get("gpu_fan_rpm") if running else None,
+            "workload_power_w": workload_power,
+            "scope_note": "CPU/RAM are attributed to the selected LLM trainer. Workload power is GPU board power plus a CPU-load estimate; WSL does not expose a reliable CPU package-power sensor." if running else "No active LLM trainer is registered for this run.",
         }
-        return {"state": "running" if running else identity.get("state", "prepared"), "runDir": str(run_dir), "workloadType": self.workload_type, "pids": sorted(pids), "progress": latest, "lossHistory": rows[-240:], "hardware": hardware}
+        return {"state": "running" if running else identity.get("state", "prepared"), "run_dir": str(run_dir), "workload_type": self.workload_type, "pids": sorted(pids), "progress": latest, "loss_history": rows[-240:], "hardware": hardware}
 
     def checkpoints(self, run_dir: Path) -> list[CheckpointInfo]:
         result: list[CheckpointInfo] = []

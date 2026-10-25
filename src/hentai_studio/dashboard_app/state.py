@@ -11,7 +11,7 @@ from .checkpoints import CheckpointCatalog
 from .controls import TrainingControls
 from .processes import TrainerProcesses
 from .progress import ProgressReader
-from .sampling import SamplingJobs
+from .sampling import SamplingJobs, SampleOptions
 from .telemetry import Telemetry
 
 
@@ -103,22 +103,20 @@ class DashboardState:
         pids = self.trainer_pids()
         return {
             "running": bool(pids),
-            "architectureLabel": "SCRATCH V3 / 4X LATENT" if self.is_x4_latent else "SCRATCH V2 / 8X LATENT",
+            "architecture_label": "SCRATCH V3 / 4X LATENT" if self.is_x4_latent else "SCRATCH V2 / 8X LATENT",
             "pids": pids,
-            "watchdogRunning": bool(self.watchdog_pids()),
+            "watchdog_running": bool(self.watchdog_pids()),
             "paused": self.pause_file.exists(),
             "progress": progress,
             "stages": stages,
-            "lossHistory": history,
+            "loss_history": history,
             "checkpoints": self.checkpoints(),
-            "checkpointCatalog": self.checkpoint_catalog(),
-            "samples": self.samples(),
             "sampling": sampling,
-            "sampleStarted": self.sampling.sample_started,
-            "checkpointEvery": int(self.raw_config.get("checkpoint_every", 1000)),
-            "disk": {"free": usage.free, "total": usage.total},
+            "sample_started": self.sampling.sample_started,
+            "checkpoint_every": int(self.raw_config.get("checkpoint_every", 1000)),
+            "disk": {"free_bytes": usage.free, "total_bytes": usage.total},
             "hardware": self.hardware_metrics(pids),
-            "serverTime": time.time(),
+            "server_time": time.time(),
         }
 
     def trainer_pids(self) -> list[int]:
@@ -145,8 +143,8 @@ class DashboardState:
     def samples(self) -> list[dict[str, object]]:
         return self.sampling.samples()
 
-    def generate_sample(self, payload: dict[str, object]) -> None:
-        return self.sampling.generate_sample(payload)
+    def start_sample(self, options: SampleOptions) -> None:
+        self.sampling.start(options)
 
     def stop(self) -> None:
         with self.control_lock:

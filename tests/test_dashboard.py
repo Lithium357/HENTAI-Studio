@@ -5,6 +5,7 @@ from pathlib import Path
 from unittest.mock import patch
 
 from hentai_studio.dashboard import DashboardState
+from hentai_studio.dashboard_app.sampling import SampleOptions
 
 
 class DashboardCheckpointCatalogTests(unittest.TestCase):
@@ -51,17 +52,10 @@ class DashboardCheckpointCatalogTests(unittest.TestCase):
             state = self.make_state(root)
             fake_process = type("FakeProcess", (), {"poll": lambda self: None})()
             with patch("hentai_studio.dashboard_app.sampling.subprocess.Popen", return_value=fake_process) as popen:
-                state.generate_sample(
-                    {
-                        "source": "historical",
-                        "runId": "previous-run",
-                        "checkpointId": "step-110000",
-                        "tags": "female, portrait",
-                        "seed": 357,
-                        "steps": 5,
-                        "guidance": 5,
-                    }
-                )
+                state.start_sample(SampleOptions(
+                    source="checkpoint", run_id="previous-run", checkpoint_id="step-110000",
+                    tags=("female", "portrait"), seed=357, steps=5, guidance=5,
+                ))
             command = popen.call_args.args[0]
             self.assertEqual(command[1:3], ["-m", "scratchtag.tools.diffusion_checkpoint_sample"])
             checkpoint_argument = command[command.index("--checkpoint") + 1]

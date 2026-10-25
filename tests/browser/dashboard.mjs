@@ -24,41 +24,42 @@ try {
   await page.locator("#sourceMode").selectOption("historical");
   assert.equal(await page.locator("#runSelect option").textContent(), "Fixture <run> · 512px");
   const actionRequests = [];
-  await page.route("**/api/action", async route => {
+  await page.route("**/api/diffusion/samples", async route => {
+    if (route.request().method() !== "POST") return route.continue();
     actionRequests.push(route.request().postDataJSON());
-    await route.fulfill({json: {ok: true}});
+    await route.fulfill({status: 202, json: {status: "running"}});
   });
   await page.locator("#sampleButton").click();
   await page.waitForFunction(() => document.getElementById("toast").textContent.includes("Historical"));
-  assert.equal(actionRequests[0].runId, "fixture");
-  assert.equal(actionRequests[0].checkpointId, "step-100");
+  assert.equal(actionRequests[0].run_id, "diffusion:fixture");
+  assert.equal(actionRequests[0].checkpoint_id, "step-100");
 
   await page.locator('[data-workspace="llm"]').click();
   await page.waitForFunction(() => document.getElementById("llmTitle").textContent === "Alpha <example>");
   assert.equal(await page.locator("#llmTitle example").count(), 0);
   const pending = [];
-  await page.route("**/chat", route => {pending.push(route);});
+  await page.route("**/chat/completions", route => {pending.push(route);});
   await page.locator("#llmChatInput").fill("hello alpha");
   await page.locator("#llmChatSend").click();
   await page.waitForTimeout(4300);
   assert.equal(await page.locator("#llmChatSend").isDisabled(), true, "polling must not enable duplicate chat requests");
   assert.equal(pending.length, 1);
-  await page.locator("#llmRunSelect").selectOption("beta");
+  await page.locator("#llmRunSelect").selectOption("llm.causal:beta");
   await page.waitForFunction(() => document.getElementById("llmTitle").textContent === "Beta <example>");
-  await pending[0].fulfill({json: {reply: "late alpha reply"}}).catch(() => {});
+  await pending[0].fulfill({json: {message: {role: "assistant", content: "late alpha reply"}}}).catch(() => {});
   assert.ok(!(await page.locator("#llmChatTranscript").textContent()).includes("late alpha reply"));
   await page.locator("#llmChatInput").fill("hello beta");
   await page.locator("#llmChatSend").click();
   await page.waitForTimeout(100);
   assert.equal(pending.length, 2);
-  assert.ok(pending[1].request().url().includes("/beta/chat"));
-  await pending[1].fulfill({json: {reply: "beta reply"}});
+  assert.ok(decodeURIComponent(pending[1].request().url()).includes("/llm.causal:beta/chat/completions"));
+  await pending[1].fulfill({json: {message: {role: "assistant", content: "beta reply"}}});
   await page.waitForFunction(() => document.getElementById("llmChatTranscript").textContent.includes("beta reply"));
 
-  await page.route("**/api/status", route => route.fulfill({status: 503, json: {error: "fixture offline"}}));
+  await page.route("**/api/diffusion/status", route => route.fulfill({status: 503, json: {error: {code: "fixture_offline", message: "fixture offline"}}}));
   await page.locator('[data-workspace="diffusion"]').click();
   await page.waitForFunction(() => document.getElementById("livePill").textContent.includes("disconnected"));
-  await page.unroute("**/api/status");
+  await page.unroute("**/api/diffusion/status");
   await page.locator('[data-workspace="llm"]').click();
   await page.locator('[data-workspace="diffusion"]').click();
   await page.waitForFunction(() => document.getElementById("livePill").textContent.includes("Trainer stopped"));

@@ -13,7 +13,7 @@ def _parser() -> argparse.ArgumentParser:
     dashboard.add_argument("--config", required=True)
     dashboard.add_argument("--host", default="127.0.0.1")
     dashboard.add_argument("--port", type=int, default=7860)
-    dashboard.add_argument("--storage-root", default="/mnt/d/HENTAI-Data", help="allowlisted bulk LLM storage root for versioned Studio APIs")
+    dashboard.add_argument("--storage-root", default="/mnt/d/HENTAI-Data", help="bulk storage root for Studio run resources")
     llm_audit = commands.add_parser("llm-audit", help="audit LLM JSONL text without GPU use or training")
     llm_audit.add_argument("--config", required=True)
     llm_validate = commands.add_parser("llm-validate", help="strictly validate an LLM workload configuration")

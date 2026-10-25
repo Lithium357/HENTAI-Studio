@@ -29,7 +29,8 @@ def test_dashboard_and_api_start_without_model_libraries():
 import sys
 from hentai_studio.cli import _parser
 from hentai_studio.dashboard import DashboardState
-from hentai_studio.studio import StudioService
+from hentai_studio.api.app import create_app
+from hentai_studio.api.services.runs import RunService
 _parser()
 assert not any(name.split('.')[0] in {'torch', 'diffusers', 'transformers', 'peft'} for name in sys.modules)
 """], check=True)

@@ -12,7 +12,13 @@ export async function requestJSON(path, {signal, timeout = 15000, ...options} = 
     } catch {
       throw new Error("Studio returned an invalid response");
     }
-    if (!response.ok) throw new Error(payload.error || `Studio request failed (${response.status})`);
+    if (!response.ok) {
+      const error = new Error(payload.error?.message || `Studio request failed (${response.status})`);
+      error.code = payload.error?.code;
+      error.details = payload.error?.details || [];
+      error.status = response.status;
+      throw error;
+    }
     return payload;
   } finally {
     clearTimeout(timer);
@@ -20,20 +26,36 @@ export async function requestJSON(path, {signal, timeout = 15000, ...options} = 
   }
 }
 
-const runPath = id => `/api/v1/runs/${encodeURIComponent(id)}`;
+const runPath = id => `/api/runs/${encodeURIComponent(id)}`;
+const get = (path, signal) => requestJSON(path, {signal});
 const post = (path, payload, options = {}) => requestJSON(path, {
   method: "POST",
-  headers: {"Content-Type": "application/json"},
-  body: JSON.stringify(payload),
+  ...(payload === undefined ? {} : {
+    headers: {"Content-Type": "application/json"},
+    body: JSON.stringify(payload),
+  }),
   ...options,
 });
 
 export const api = {
-  status: signal => requestJSON("/api/status", {signal}),
-  runs: signal => requestJSON("/api/v1/runs", {signal}),
-  storage: signal => requestJSON("/api/v1/storage", {signal}),
-  runStatus: (id, signal) => requestJSON(`${runPath(id)}/status`, {signal}),
-  checkpoints: (id, signal) => requestJSON(`${runPath(id)}/checkpoints`, {signal}),
-  action: payload => post("/api/action", payload, {timeout: 60000}),
-  chat: (id, messages, signal) => post(`${runPath(id)}/chat`, {messages, maxNewTokens: 128}, {signal, timeout: 300000}),
+  system: {
+    health: signal => get("/api/health", signal),
+    storage: signal => get("/api/storage", signal),
+  },
+  runs: {
+    list: (workload, signal) => get(`/api/runs${workload ? `?workload=${encodeURIComponent(workload)}` : ""}`, signal),
+    get: (id, signal) => get(runPath(id), signal),
+    checkpoints: (id, signal) => get(`${runPath(id)}/checkpoints`, signal),
+    completeChat: (id, messages, signal) => post(`${runPath(id)}/chat/completions`, {messages, max_new_tokens: 128}, {signal, timeout: 300000}),
+  },
+  diffusion: {
+    status: signal => get("/api/diffusion/status", signal),
+    checkpoints: signal => get("/api/diffusion/checkpoints", signal),
+    samples: signal => get("/api/diffusion/samples", signal),
+    sampling: signal => get("/api/diffusion/sampling", signal),
+    createSample: payload => post("/api/diffusion/samples", payload),
+    pause: () => post("/api/diffusion/training/pause", undefined, {timeout: 60000}),
+    resume: () => post("/api/diffusion/training/resume", undefined, {timeout: 60000}),
+    promoteVae: () => post("/api/diffusion/training/promote-vae", undefined, {timeout: 60000}),
+  },
 };

@@ -14,7 +14,10 @@ export function createDiffusionWorkspace() {
     controller?.abort();
     const request = controller = new AbortController();
     try {
-      const data = await api.status(request.signal);
+      const [status, catalog, samples] = await Promise.all([
+        api.diffusion.status(request.signal), api.diffusion.checkpoints(request.signal), api.diffusion.samples(request.signal),
+      ]);
+      const data = {...status, checkpoint_catalog: catalog.items, samples: samples.items};
       if (!request.signal.aborted) render(data);
     } catch (error) {
       if (!request.signal.aborted) setConnection("Dashboard disconnected");
@@ -26,7 +29,7 @@ export function createDiffusionWorkspace() {
     const previousRun = $("runSelect").value;
     const signature = checkpointCatalog.map(run => `${escapeHTML(run.id)}:${run.checkpoints.map(cp => cp.id).join(",")}`).join("|");
     if ($("runSelect").dataset.signature !== signature) {
-      $("runSelect").innerHTML = checkpointCatalog.map(run => `<option value="${escapeHTML(run.id)}">${escapeHTML(run.label)} · ${run.resolution}px</option>`).join("");
+      $("runSelect").innerHTML = checkpointCatalog.map(run => `<option value="${escapeHTML(run.id)}">${escapeHTML(run.display_name)} · ${run.resolution_px}px</option>`).join("");
       $("runSelect").dataset.signature = signature;
       if (checkpointCatalog.some(run => run.id === previousRun)) $("runSelect").value = previousRun;
       syncCheckpointOptions();
@@ -44,21 +47,21 @@ export function createDiffusionWorkspace() {
   function updateSampleControls() {
     $("stopButton").disabled = actionPending || !latestStatus.running;
     $("resumeButton").disabled = actionPending || latestStatus.running;
-    $("startDiffusionButton").disabled = actionPending || latestStatus.sampling || !latestStatus.checkpoints?.length;
+    $("startDiffusionButton").disabled = actionPending || (latestStatus.sampling?.status === "running") || !latestStatus.checkpoints?.length;
     const historical = $("sourceMode").value === "historical";
     const samplingVae = activeStage === "vae" && !historical;
     const selectedCheckpoint = Boolean($("checkpointSelect").value);
     const latest = latestStatus.checkpoints?.[0];
     const waitingForVaeCheckpoint = samplingVae && !latest;
-    const checkpointEvery = Number(latestStatus.checkpointEvery || 1000);
+    const checkpointEvery = Number(latestStatus.checkpoint_every || 1000);
     const currentStep = Number(latestStatus.progress?.step || 0);
     const nextCheckpointStep = Math.max(checkpointEvery, Math.ceil((currentStep + 1) / checkpointEvery) * checkpointEvery);
     const stepsUntilCheckpoint = Math.max(0, nextCheckpointStep - currentStep);
-    const checkpointEta = stepsUntilCheckpoint * Number(latestStatus.progress?.secondsPerStep || 0);
+    const checkpointEta = stepsUntilCheckpoint * Number(latestStatus.progress?.seconds_per_step || 0);
     $("historicalFields").hidden = !historical;
     ["tagsInput", "seedInput", "stepsInput", "guidanceInput"].forEach(id => { $(id).disabled = samplingVae; });
-    $("sampleButton").disabled = actionPending || Boolean(latestStatus.sampling) || (historical ? !selectedCheckpoint : !latest);
-    $("sampleButton").textContent = latestStatus.sampling
+    $("sampleButton").disabled = actionPending || (latestStatus.sampling?.status === "running") || (historical ? !selectedCheckpoint : !latest);
+    $("sampleButton").textContent = (latestStatus.sampling?.status === "running")
       ? "Generating on CPU…"
       : (waitingForVaeCheckpoint
         ? `First VAE checkpoint at step ${formatNumber(nextCheckpointStep)}`
@@ -71,6 +74,9 @@ export function createDiffusionWorkspace() {
         : (samplingVae
           ? "Selects a fresh random training record and reconstructs it through the latest VAE checkpoint. Runs on CPU."
           : "Runs on CPU so the RX 7800 XT can keep training. Samples use the latest completed checkpoint."));
+    if (latestStatus.sampling?.status === "failed") {
+      $("sampleHelp").textContent = `The last sample failed (exit code ${latestStatus.sampling.exit_code}). Review the checkpoint and engine setup before retrying. ${$("sampleHelp").textContent}`;
+    }
   }
 
   function render(data) {
@@ -82,7 +88,7 @@ export function createDiffusionWorkspace() {
     $("livePill").className = `live-pill ${data.running ? "running" : "stopped"}`;
     $("livePill").querySelector("span").textContent = data.running ? "Training live" : "Trainer stopped";
     $("stepTitle").textContent = p.step != null ? `Step ${formatNumber(p.step)} of ${formatNumber(p.total)}` : "No progress detected";
-    $("stageEyebrow").textContent = `${data.architectureLabel || "SCRATCH"} / ${stages.active === "diffusion" ? "DIFFUSION" : "VAE"}`;
+    $("stageEyebrow").textContent = `${data.architecture_label || "SCRATCH"} / ${stages.active === "diffusion" ? "DIFFUSION" : "VAE"}`;
     $("checkpointBadge").textContent = latest ? `${latest.name} safe` : "No checkpoint";
     [["vae", vae], ["diffusion", diffusion], ["overall", overall]].forEach(([name, stage]) => {
       $(`${name}ProgressFill`).style.width = `${Math.min(100, stage.percent || 0)}%`;
@@ -91,63 +97,63 @@ export function createDiffusionWorkspace() {
     });
     $("vaeState").textContent = (vae.percent || 0) >= 100 ? "Complete" : (stages.active === "vae" ? "Training now" : "Waiting");
     $("diffusionState").textContent = (diffusion.percent || 0) >= 100 ? "Complete" : (stages.active === "diffusion" ? "Training now" : "Queued");
-    $("etaLabel").textContent = p.etaSeconds ? `Rolling ETA ${formatDuration(p.etaSeconds)}` : "ETA —";
+    $("etaLabel").textContent = p.eta_seconds ? `Rolling ETA ${formatDuration(p.eta_seconds)}` : "ETA —";
     $("lossValue").textContent = p.loss != null ? formatNumber(p.loss, 4) : "—";
-    $("paceValue").textContent = p.secondsPerStep != null ? formatNumber(p.secondsPerStep, 2) : "—";
-    $("throughputValue").textContent = p.imagesPerSecond != null ? formatNumber(p.imagesPerSecond, 2) : "—";
+    $("paceValue").textContent = p.seconds_per_step != null ? formatNumber(p.seconds_per_step, 2) : "—";
+    $("throughputValue").textContent = p.images_per_second != null ? formatNumber(p.images_per_second, 2) : "—";
     $("safeStepValue").textContent = latest ? formatNumber(latest.step) : "—";
-    $("healthTitle").textContent = data.running ? (data.watchdogRunning ? "Trainer is protected" : "Trainer is healthy") : (data.paused ? "Trainer intentionally paused" : "Automatic recovery pending");
+    $("healthTitle").textContent = data.running ? (data.watchdog_running ? "Trainer is protected" : "Trainer is healthy") : (data.paused ? "Trainer intentionally paused" : "Automatic recovery pending");
     $("healthCopy").textContent = data.running
-      ? `Process ${data.pids.join(", ")} is active. ${data.watchdogRunning ? "The watchdog will resume it after an unexpected exit." : "Automatic recovery is not active."}`
+      ? `Process ${data.pids.join(", ")} is active. ${data.watchdog_running ? "The watchdog will resume it after an unexpected exit." : "Automatic recovery is not active."}`
       : (data.paused ? "HENTAI Studio will leave training stopped until you press Resume." : "The watchdog will load the latest completed checkpoint automatically.");
     $("stopButton").disabled = !data.running;
     $("resumeButton").disabled = data.running;
     $("startDiffusionButton").hidden = !samplingVae;
-    $("startDiffusionButton").disabled = data.sampling || !latest;
+    $("startDiffusionButton").disabled = (data.sampling?.status === "running") || !latest;
     $("trainerMicrocopy").textContent = samplingVae
       ? "The diffuser button discards only progress after the latest safe VAE checkpoint, calibrates that VAE, then starts diffusion automatically."
       : "Diffuser training is active. Stop and resume both preserve the latest completed checkpoint.";
-    syncCheckpointMenus(data.checkpointCatalog);
+    syncCheckpointMenus(data.checkpoint_catalog);
     updateSampleControls();
-    $("diskLabel").textContent = `${formatBytes(data.disk?.free)} free`;
+    $("diskLabel").textContent = `${formatBytes(data.disk?.free_bytes)} free`;
     const hw = data.hardware || {};
-    $("gpuUsage").textContent = valueOrDash(hw.gpuUsagePct, "%", 0);
-    $("gpuVram").textContent = hw.gpuVramBytes == null ? "—" : `${formatBytes(hw.gpuVramBytes)} / ${formatBytes(hw.gpuVramTotalBytes)}`;
-    $("gpuTemp").textContent = hw.gpuTempC == null ? "—" : `${formatNumber(hw.gpuTempC, 0)}° / ${formatNumber(hw.gpuHotspotC, 0)}°C`;
-    $("gpuFan").textContent = valueOrDash(hw.gpuFanRpm, " RPM", 0);
-    $("cpuUsage").textContent = valueOrDash(hw.cpuUsagePct, "%", 1);
-    $("cpuTemp").textContent = hw.cpuTempC == null ? "N/A" : `${formatNumber(hw.cpuTempC, 0)}°C`;
-    $("cpuRam").textContent = hw.cpuRamBytes == null ? "—" : formatBytes(hw.cpuRamBytes);
-    $("workloadPower").textContent = valueOrDash(hw.workloadPowerW, " W", 0);
-    $("energyUsed").textContent = valueOrDash(hw.energyKwh, " kWh", 3);
-    $("powerDetail").textContent = hw.gpuBoardPowerW == null ? "waiting for active workload" : `${formatNumber(hw.gpuBoardPowerW, 0)} W GPU board + attributed CPU`;
-    $("hardwareNote").textContent = hw.scopeNote || "Hardware sensors unavailable.";
+    $("gpuUsage").textContent = valueOrDash(hw.gpu_usage_pct, "%", 0);
+    $("gpuVram").textContent = hw.gpu_vram_bytes == null ? "—" : `${formatBytes(hw.gpu_vram_bytes)} / ${formatBytes(hw.gpu_vram_total_bytes)}`;
+    $("gpuTemp").textContent = hw.gpu_temp_c == null ? "—" : `${formatNumber(hw.gpu_temp_c, 0)}° / ${formatNumber(hw.gpu_hotspot_c, 0)}°C`;
+    $("gpuFan").textContent = valueOrDash(hw.gpu_fan_rpm, " RPM", 0);
+    $("cpuUsage").textContent = valueOrDash(hw.cpu_usage_pct, "%", 1);
+    $("cpuTemp").textContent = hw.cpu_temp_c == null ? "N/A" : `${formatNumber(hw.cpu_temp_c, 0)}°C`;
+    $("cpuRam").textContent = hw.cpu_ram_bytes == null ? "—" : formatBytes(hw.cpu_ram_bytes);
+    $("workloadPower").textContent = valueOrDash(hw.workload_power_w, " W", 0);
+    $("energyUsed").textContent = valueOrDash(hw.energy_kwh, " kWh", 3);
+    $("powerDetail").textContent = hw.gpu_board_power_w == null ? "waiting for active workload" : `${formatNumber(hw.gpu_board_power_w, 0)} W GPU board + attributed CPU`;
+    $("hardwareNote").textContent = hw.scope_note || "Hardware sensors unavailable.";
     $("hardwareScope").textContent = hw.available ? "LIVE · PROCESS + ATTRIBUTED" : "TRAINER IDLE";
-    setMeter("gpuUsageBar", hw.gpuUsagePct);
-    setMeter("gpuVramBar", hw.gpuVramBytes && hw.gpuVramTotalBytes ? hw.gpuVramBytes / hw.gpuVramTotalBytes * 100 : 0);
-    setMeter("cpuUsageBar", hw.cpuUsagePct);
-    setMeter("cpuRamBar", hw.cpuRamBytes && hw.cpuRamTotalBytes ? hw.cpuRamBytes / hw.cpuRamTotalBytes * 100 : 0);
-    $("checkpointList").innerHTML = checkpoints.length ? checkpoints.map(cp => `<div class="checkpoint-item"><div class="checkpoint-icon">${escapeHTML(String(cp.step / 1000).replace(".0",""))}K</div><div><strong>${escapeHTML(cp.name)}</strong><small>${new Date(cp.modifiedAt * 1000).toLocaleString()}</small></div><span class="checkpoint-size">${formatBytes(cp.size)}</span></div>`).join("") : '<p class="empty">No completed checkpoints yet.</p>';
-    drawChartInto("lossChart", data.lossHistory);
+    setMeter("gpuUsageBar", hw.gpu_usage_pct);
+    setMeter("gpuVramBar", hw.gpu_vram_bytes && hw.gpu_vram_total_bytes ? hw.gpu_vram_bytes / hw.gpu_vram_total_bytes * 100 : 0);
+    setMeter("cpuUsageBar", hw.cpu_usage_pct);
+    setMeter("cpuRamBar", hw.cpu_ram_bytes && hw.cpu_ram_total_bytes ? hw.cpu_ram_bytes / hw.cpu_ram_total_bytes * 100 : 0);
+    $("checkpointList").innerHTML = checkpoints.length ? checkpoints.map(cp => `<div class="checkpoint-item"><div class="checkpoint-icon">${escapeHTML(String(cp.step / 1000).replace(".0",""))}K</div><div><strong>${escapeHTML(cp.name)}</strong><small>${new Date(cp.modified_at * 1000).toLocaleString()}</small></div><span class="checkpoint-size">${formatBytes(cp.size_bytes)}</span></div>`).join("") : '<p class="empty">No completed checkpoints yet.</p>';
+    drawChartInto("lossChart", data.loss_history);
     const latestSample = data.samples?.[0];
     const sampleStage = $("sampleStage");
-    if (latestSample && /^\/samples\/[^/]+$/.test(latestSample.url)) {
+    if (latestSample && /^\/api\/diffusion\/samples\/[^/]+$/.test(latestSample.url)) {
       const image = document.createElement("img");
-      image.src = `${latestSample.url}?v=${Number(latestSample.modifiedAt)}`;
+      image.src = `${latestSample.url}?v=${Number(latestSample.modified_at)}`;
       image.alt = "Latest generated checkpoint sample";
       sampleStage.replaceChildren(image);
     } else {
       sampleStage.innerHTML = '<div class="sample-empty"><span>◇</span><p>No dashboard samples yet</p><small>Generate one from the latest checkpoint.</small></div>';
     }
-    $("refreshLabel").textContent = `Updated ${new Date(data.serverTime * 1000).toLocaleTimeString()}`;
+    $("refreshLabel").textContent = `Updated ${new Date(data.server_time * 1000).toLocaleTimeString()}`;
   }
 
-  async function action(payload, success) {
+  async function runCommand(command, success) {
     if (actionPending) return;
     actionPending = true;
     updateSampleControls();
     try {
-      await api.action(payload);
+      await command();
       toast(success);
       await refresh();
     } catch (error) {
@@ -160,25 +166,23 @@ export function createDiffusionWorkspace() {
 
 
 
-  $("stopButton").addEventListener("click", () => { if (confirm("Stop training now? Progress since the latest checkpoint will be repeated on resume.")) action({ action: "stop" }, "Trainer stop requested"); });
-  $("resumeButton").addEventListener("click", () => action({ action: "resume" }, "Trainer resume requested"));
-  $("startDiffusionButton").addEventListener("click", () => { if (confirm("End VAE training at the latest safe checkpoint and begin diffuser training? This cannot resume the same VAE run unless the promoted model is removed manually.")) action({ action: "start_diffusion" }, "VAE checkpoint promoted; diffuser startup requested"); });
+  $("stopButton").addEventListener("click", () => { if (confirm("Stop training now? Progress since the latest checkpoint will be repeated on resume.")) runCommand(api.diffusion.pause, "Trainer stop requested"); });
+  $("resumeButton").addEventListener("click", () => runCommand(api.diffusion.resume, "Trainer resume requested"));
+  $("startDiffusionButton").addEventListener("click", () => { if (confirm("End VAE training at the latest safe checkpoint and begin diffuser training? This cannot resume the same VAE run unless the promoted model is removed manually.")) runCommand(api.diffusion.promoteVae, "VAE checkpoint promoted; diffuser startup requested"); });
   $("sourceMode").addEventListener("change", updateSampleControls);
   $("runSelect").addEventListener("change", syncCheckpointOptions);
   $("checkpointSelect").addEventListener("change", updateSampleControls);
   $("sampleForm").addEventListener("submit", event => {
     event.preventDefault();
     const historical = $("sourceMode").value === "historical";
-    action({
-      action: "sample",
-      source: historical ? "historical" : "current",
-      runId: $("runSelect").value,
-      checkpointId: $("checkpointSelect").value,
-      tags: $("tagsInput").value,
+    runCommand(() => api.diffusion.createSample({
+      source: historical ? "checkpoint" : "current",
+      ...(historical ? {run_id: $("runSelect").value, checkpoint_id: $("checkpointSelect").value} : {}),
+      tags: $("tagsInput").value.split(",").map(tag => tag.trim()).filter(Boolean),
       seed: Number($("seedInput").value),
       steps: Number($("stepsInput").value),
       guidance: Number($("guidanceInput").value)
-    }, historical ? "Historical checkpoint sample started on CPU" : (activeStage === "vae" ? "Random VAE reconstruction started on CPU" : "Checkpoint sample started on CPU"));
+    }), historical ? "Historical checkpoint sample started on CPU" : (activeStage === "vae" ? "Random VAE reconstruction started on CPU" : "Checkpoint sample started on CPU"));
   });
 
   return { refresh, deactivate() { controller?.abort(); } };

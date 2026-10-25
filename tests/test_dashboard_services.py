@@ -3,6 +3,7 @@ from unittest.mock import patch
 import pytest
 
 from hentai_studio.dashboard import DashboardState
+from hentai_studio.dashboard_app.sampling import SampleOptions
 
 
 def state(tmp_path):
@@ -18,7 +19,7 @@ def test_progress_handles_duplicate_log_steps_and_rolling_pace(tmp_path):
     (logs / "scratch-v2-training.log").write_text("1/10 2.0s/it loss=3.0\n2/10 4.0s/it loss=2.5\n2/10 3.0s/it loss=2.0\n")
     progress, history = dashboard.progress()
     assert progress["step"] == 2
-    assert progress["secondsPerStep"] == 3.0
+    assert progress["seconds_per_step"] == 3.0
     assert history == [{"step": 1.0, "loss": 3.0}, {"step": 2.0, "loss": 2.0}]
 
 
@@ -54,3 +55,19 @@ def test_resume_refuses_fixed_watchdog_for_another_run_and_stays_paused(tmp_path
             dashboard.resume()
     assert dashboard.pause_file.is_file()
     launch.assert_not_called()
+
+
+@pytest.mark.parametrize("exit_code,expected", [(0, "succeeded"), (1, "failed")])
+def test_sampling_retains_its_completion_result(tmp_path, exit_code, expected):
+    dashboard = state(tmp_path)
+    process = type("Process", (), {"poll": lambda self: None})()
+    with patch("hentai_studio.dashboard_app.sampling.subprocess.Popen", return_value=process):
+        dashboard.start_sample(SampleOptions(tags=("portrait",)))
+    assert dashboard.sampling.status()["status"] == "running"
+    process.poll = lambda: exit_code
+    result = dashboard.sampling.status()
+    assert result["status"] == expected
+    assert result["exit_code"] == exit_code
+    assert result["started_at"] is not None
+    assert result["finished_at"] is not None
+    assert dashboard.sampling.status() == result

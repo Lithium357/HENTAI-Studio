@@ -6,7 +6,7 @@ Diffusion model definitions, training, checkpoint sampling, and image generation
 
 ## Install
 
-Clone both repositories. Use matching split revisions (HENTAI 0.2 and Studio 0.2) until both changes are merged.
+Clone both repositories. Use matching split revisions (HENTAI 0.2 and Studio 0.3) until both changes are merged.
 
 ```bash
 git clone https://github.com/Lithium357/HENTAI.git
@@ -42,7 +42,7 @@ hentai-studio studio --project /path/to/HENTAI \
   --storage-root /mnt/d/HENTAI-Data --port 7861
 ```
 
-Open `http://127.0.0.1:7860`. `--project` always refers to the **HENTAI engine checkout**, regardless of the current directory. Relative diffusion configs, data paths, runs, and watchdogs resolve from that project. LLM commands resolve their own config paths from the current directory. Choose an existing writable directory for `--storage-root`; managed LLM preparation creates run directories beneath it.
+Open `http://127.0.0.1:7860`. The rewritten API is documented at `http://127.0.0.1:7860/api/docs`; its schema is at `/api/openapi.json`. See the [API reference](docs/API.md) for resources, examples, and errors. `--project` always refers to the **HENTAI engine checkout**, regardless of the current directory. Relative diffusion configs, data paths, runs, and watchdogs resolve from that project. LLM commands resolve their own config paths from the current directory. Choose an existing writable directory for `--storage-root`; managed LLM preparation creates run directories beneath it.
 
 The dashboard provides VAE/diffuser progress, stop/resume and promotion controls, CPU checkpoint sampling, historical checkpoint selection, CSV exports, process telemetry, and an LLM workspace with CPU checkpoint chat. Training and samples are explicit actions; merely starting the dashboard does not start training.
 
@@ -67,6 +67,7 @@ The bundled telemetry executable is installed with the Python package. Its Rust 
 - [CLI](docs/CLI.md)
 - [Development](docs/DEVELOPMENT.md)
 - [Dashboard architecture](docs/ARCHITECTURE.md)
+- [API reference](docs/API.md)
 - [LLM dataset contract](docs/LLM_DATASET.md)
 - [LLM training](docs/LLM_TRAINING.md)
 - [LLM throughput plan](docs/LLM_THROUGHPUT_PLAN.md)

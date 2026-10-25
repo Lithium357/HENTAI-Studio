@@ -30,8 +30,8 @@ class CheckpointCatalog:
                 {
                     "name": path.name,
                     "step": int(path.name.split("-")[-1]),
-                    "size": size,
-                    "modifiedAt": path.stat().st_mtime,
+                    "size_bytes": size,
+                    "modified_at": path.stat().st_mtime,
                 }
             )
         return result[:8]
@@ -68,7 +68,7 @@ class CheckpointCatalog:
                         {
                             "id": checkpoint.name,
                             "step": int(checkpoint.name.split("-")[-1]),
-                            "modifiedAt": checkpoint.stat().st_mtime,
+                            "modified_at": checkpoint.stat().st_mtime,
                         }
                     )
             if checkpoints:
@@ -81,7 +81,7 @@ class CheckpointCatalog:
                     }
                 )
         result.sort(
-            key=lambda run: max(float(item["modifiedAt"]) for item in run["checkpoints"]),
+            key=lambda run: max(float(item["modified_at"]) for item in run["checkpoints"]),
             reverse=True,
         )
         return result
