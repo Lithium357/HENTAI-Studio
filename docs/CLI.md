@@ -1,34 +1,25 @@
-# Studio CLI
+# Command line
 
-Run `hentai-studio --help` or `hentai-studio COMMAND --help` for the complete argument list.
-
-```bash
-hentai-studio dashboard --project /path/to/HENTAI --config configs/local-v3.json \
-  --storage-root /mnt/d/HENTAI-Data --host 127.0.0.1 --port 7860
+```text
+hentai-studio serve [--workspace PATH] [--host 127.0.0.1] [--port 7860]
 ```
 
-`--project` is required for `dashboard` and `studio`; relative diffusion configs resolve there. The API-only server defaults to port 7861. LLM commands use config paths relative to the shell's current directory. `llm-normalize-erp --source DIR --output DIR [--limit-files N]` converts a local CSV archive into cleaned JSONL without training. `llm-tokenizer --config FILE --output DIR` trains a run-local BPE tokenizer from configured text.
+The workspace defaults to `~/.hentai-studio` and is created when absent. It contains registrations and durable job state. No project or training config is required to launch. Use the dashboard or typed API to register projects. Startup rejects a workspace already served by another process. Closing the server leaves supervisors running; restart against the same workspace to reconnect.
 
-## Causal LLM workflow
+The old `dashboard --project --config` and `studio --project --storage-root` interfaces have been removed. Model-specific project paths and storage layouts are not part of the application contract.
 
-```bash
-.venv/bin/hentai-studio llm-validate --config configs/local-llm.json
-.venv/bin/hentai-studio llm-audit --config configs/local-llm.json
-.venv/bin/hentai-studio llm-smoke --config configs/local-llm.json --tiny
-.venv/bin/hentai-studio llm-build-packed-cache --config configs/local-llm.json
-.venv/bin/hentai-studio llm-prepare --config configs/local-llm.json --run-id local-llm
-.venv/bin/hentai-studio llm-train --config configs/local-llm.json --device cuda
-```
+## Optional causal-LM utilities
 
-`llm-build-packed-cache` reads and tokenizes configured text but never opens image/GIF media and never uses the GPU. It defaults to `dataset.packed_cache`; `--output DIR` overrides that destination and `--overwrite` is required to replace an incompatible cache.
+Install `pip install '.[llm]'` to use the bundled standalone training utilities. They are separate from project management:
 
-`llm-train` implements `scratch` and `lora`. LoRA requires a local base model plus a verified packed cache. `--no-resume` intentionally ignores complete resume checkpoints; do not use it against an established run unless a fresh start is intended.
+- `llm-audit --config FILE`
+- `llm-validate --config FILE`
+- `llm-prepare --config FILE --run-id ID [--display-name NAME]`
+- `llm-tokenizer --config FILE --output DIRECTORY`
+- `llm-build-packed-cache --config FILE [--output DIRECTORY] [--overwrite]`
+- `llm-smoke --config FILE [--device cpu|cuda] [--tiny]`
+- `llm-train --config FILE [--no-resume] [--device cpu|cuda]`
+- `llm-checkpoint-verify --run-dir DIRECTORY --step NUMBER`
+- `llm-normalize-erp --source PATH --output DIRECTORY [--limit-files NUMBER]`
 
-```bash
-.venv/bin/hentai-studio llm-checkpoint-verify \
-  --run-dir /path/to/run --step 500
-
-.venv/bin/hentai-studio studio --project /path/to/HENTAI \
-  --storage-root /mnt/d/HENTAI-Data \
-  --host 127.0.0.1 --port 7861
-```
+Use `hentai-studio COMMAND --help` for arguments. These utilities retain their own config and storage semantics; the generic dashboard does not infer them. See LLM_TRAINING.md for details.

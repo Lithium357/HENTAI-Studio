@@ -4,16 +4,16 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "hentai-studio"
-version = "0.3.0"
-description = "Local HENTAI control room, telemetry, and causal-LM workloads"
+version = "0.4.0"
+description = "Standalone local training project and job manager"
 readme = "README.md"
 requires-python = ">=3.11"
 dependencies = [
-  "scratchtag-diffusion>=0.2,<0.3",
   "fastapi>=0.162,<1",
   "starlette>=1.10,<2",
   "uvicorn>=0.30,<1",
   "pydantic>=2.9,<3",
+  "psutil>=6,<8",
 ]
 
 [project.optional-dependencies]

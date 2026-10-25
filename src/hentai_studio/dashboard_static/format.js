@@ -1,4 +1,0 @@
-export function formatNumber(value, digits = 0) { return Number(value || 0).toLocaleString(undefined, { maximumFractionDigits: digits, minimumFractionDigits: digits }); }
-export function formatBytes(bytes) { const units = ["B","KB","MB","GB","TB"]; let value = Number(bytes || 0), unit = 0; while (value >= 1024 && unit < units.length - 1) { value /= 1024; unit++; } return `${value.toFixed(unit > 1 ? 1 : 0)} ${units[unit]}`; }
-export function formatDuration(seconds) { seconds = Math.max(0, Number(seconds || 0)); const days = Math.floor(seconds / 86400); const hours = Math.floor(seconds % 86400 / 3600); const minutes = Math.floor(seconds % 3600 / 60); return days ? `${days}d ${hours}h` : hours ? `${hours}h ${minutes}m` : `${minutes}m`; }
-export function valueOrDash(value, suffix, digits = 0) { return value == null ? "—" : `${formatNumber(value, digits)}${suffix}`; }

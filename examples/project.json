@@ -1,0 +1,11 @@
+{
+  "id": "demo",
+  "name": "Demo training project",
+  "root": "/absolute/path/to/HENTAI-Studio",
+  "commands": {
+    "train": ["/absolute/path/to/python", "-u", "examples/demo_train.py"],
+    "resume": ["/absolute/path/to/python", "-u", "examples/demo_train.py"]
+  },
+  "environment": {},
+  "metrics_file": "metrics.jsonl"
+}

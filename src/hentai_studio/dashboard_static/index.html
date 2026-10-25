@@ -1,227 +1,214 @@
 <!doctype html>
 <html lang="en">
   <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="theme-color" content="#0b0d10" />
-    <title>HENTAI Studio</title>
-    <meta name="description" content="HENTAI Studio — local dashboard for diffusion and language-model training." />
-    <link rel="stylesheet" href="/assets/styles.css" />
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>
+      HENTAI Studio
+    </title>
+    <link rel="stylesheet" href="/assets/styles.css">
   </head>
   <body>
-    <div class="shell">
-      <header class="topbar">
-        <div class="brand">
-          <div class="brand-mark" aria-hidden="true"><span></span><span></span><span></span></div>
-          <div>
-            <p class="eyebrow">LOCAL CONTROL ROOM</p>
-            <h1>HENTAI <em>Studio</em></h1>
-            <p class="brand-expansion">Model training, checkpoints, and local inference</p>
-          </div>
+    <header>
+      <div>
+        <strong>
+          HENTAI
+          <span>
+            Studio
+          </span>
+        </strong>
+        <small>
+          TRAINING WORKSPACE
+        </small>
+      </div>
+      <span id="connection" role="status">
+        Connecting…
+      </span>
+      <a href="/api/docs" target="_blank" rel="noopener">
+        API docs ↗
+      </a>
+    </header>
+    <div id="notice" role="alert" hidden>
+    </div>
+    <div class="layout">
+      <aside>
+        <div class="section-head">
+          <h2>
+            Projects
+          </h2>
+          <button id="addProject">
+            + Register
+          </button>
         </div>
-        <div class="live-pill" id="livePill"><i></i><span>Connecting</span></div>
-      </header>
-
-      <main>
-        <nav class="workspace-tabs" aria-label="Training workspace">
-          <button class="workspace-tab active" data-workspace="diffusion" type="button">Diffusion <span>images</span></button>
-          <button class="workspace-tab" data-workspace="llm" type="button">LLM <span>causal text</span></button>
+        <nav id="projects" aria-label="Projects">
         </nav>
-        <div id="diffusionWorkspace">
-        <section class="hero-grid">
-          <article class="panel progress-panel">
-            <div class="panel-heading">
-              <div>
-                <p class="eyebrow" id="stageEyebrow">HENTAI DIFFUSION / INITIALIZING</p>
-                <h2 id="stepTitle">Loading training state…</h2>
-              </div>
-              <span class="checkpoint-badge" id="checkpointBadge">No checkpoint</span>
-            </div>
-
-            <div class="stage-progress" aria-label="Training stage progress">
-              <div class="stage-row">
-                <div class="stage-label"><strong>VAE</strong><span id="vaeCount">—</span></div>
-                <div class="progress-track"><div id="vaeProgressFill"></div></div>
-                <div class="progress-meta"><span id="vaePercentLabel">—</span><span id="vaeState">Waiting</span></div>
-              </div>
-              <div class="stage-row">
-                <div class="stage-label"><strong>DIFFUSER</strong><span id="diffusionCount">—</span></div>
-                <div class="progress-track"><div id="diffusionProgressFill"></div></div>
-                <div class="progress-meta"><span id="diffusionPercentLabel">—</span><span id="diffusionState">Waiting</span></div>
-              </div>
-              <div class="stage-row overall-row">
-                <div class="stage-label"><strong>OVERALL</strong><span id="overallCount">—</span></div>
-                <div class="progress-track overall"><div id="overallProgressFill"></div></div>
-                <div class="progress-meta"><span id="overallPercentLabel">—</span><span id="etaLabel">ETA —</span></div>
-              </div>
-            </div>
-
-            <div class="metric-row">
-              <div class="metric"><span>LOSS</span><strong id="lossValue">—</strong><small>latest batch</small></div>
-              <div class="metric"><span>PACE</span><strong id="paceValue">—</strong><small>seconds / step</small></div>
-              <div class="metric"><span>THROUGHPUT</span><strong id="throughputValue">—</strong><small>images / second</small></div>
-              <div class="metric"><span>SAFE STEP</span><strong id="safeStepValue">—</strong><small>latest checkpoint</small></div>
-            </div>
-            <div class="progress-downloads">
-              <span>EXPORT TRAINING DATA</span>
-              <a class="download-button" href="/api/diffusion/progress/vae.csv" download>Download VAE CSV</a>
-              <a class="download-button" href="/api/diffusion/progress/diffusion.csv" download>Download Diffuser CSV</a>
-            </div>
-          </article>
-
-          <aside class="panel action-panel">
+        <p class="hint">
+          Run any local trainer in its own environment. Studio manages the process and observes its outputs.
+        </p>
+        <small id="workspace">
+        </small>
+      </aside>
+      <main>
+        <section id="empty">
+          <p class="eyebrow">
+            YOUR TRAINING, ONE WORKSPACE
+          </p>
+          <h1>
+            Bring your project.
+          </h1>
+          <p>
+            Register a directory and the commands you use to train, evaluate, or resume. No model library or project plugin required.
+          </p>
+          <button id="emptyAdd" class="primary">
+            Register a project
+          </button>
+        </section>
+        <section id="projectView" hidden>
+          <div class="section-head">
             <div>
-              <p class="eyebrow">TRAINER CONTROL</p>
-              <h2 id="healthTitle">Checking process</h2>
-              <p class="muted" id="healthCopy">Waiting for the local trainer to answer.</p>
+              <p class="eyebrow">
+                PROJECT
+              </p>
+              <h1 id="projectName">
+              </h1>
+              <code id="projectRoot">
+              </code>
             </div>
-            <div class="action-stack">
-              <button class="button danger" id="stopButton">Stop safely</button>
-              <button class="button primary" id="resumeButton">Resume training</button>
-              <button class="button" id="startDiffusionButton">Finish VAE at checkpoint &amp; start diffuser</button>
+            <div class="actions">
+              <button id="editProject">
+                Edit
+              </button>
+              <button id="removeProject" class="danger">
+                Unregister
+              </button>
             </div>
-            <p class="microcopy" id="trainerMicrocopy">Stop uses the latest completed checkpoint. Resume never resets model progress.</p>
-          </aside>
-        </section>
-
-        <section class="content-grid">
-          <article class="panel chart-panel">
-            <div class="panel-heading compact">
-              <div><p class="eyebrow">LEARNING SIGNAL</p><h2>Recent loss</h2></div>
-              <span class="chart-range">LAST 240 STEPS</span>
-            </div>
-            <svg id="lossChart" viewBox="0 0 760 240" role="img" aria-label="Recent training loss chart">
-              <defs>
-                <linearGradient id="areaGradient" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0" stop-color="#65e4c2" stop-opacity=".35" />
-                  <stop offset="1" stop-color="#65e4c2" stop-opacity="0" />
-                </linearGradient>
-              </defs>
-              <g class="grid-lines"></g><path class="area" fill="url(#areaGradient)"></path><path class="line"></path>
-            </svg>
-          </article>
-
-          <article class="panel checkpoints-panel">
-            <div class="panel-heading compact">
-              <div><p class="eyebrow">RECOVERY POINTS</p><h2>Checkpoints</h2></div>
-              <span class="disk-label" id="diskLabel">— free</span>
-            </div>
-            <div class="checkpoint-list" id="checkpointList"><p class="empty">Loading checkpoints…</p></div>
-          </article>
-        </section>
-
-        <section class="panel hardware-panel">
-          <div class="panel-heading compact">
-            <div><p class="eyebrow">LIVE TELEMETRY</p><h2>Training hardware</h2></div>
-            <span class="chart-range" id="hardwareScope">PROCESS + ATTRIBUTED</span>
           </div>
-          <div class="hardware-grid">
-            <div class="hardware-card"><span>GPU LOAD</span><strong id="gpuUsage">—</strong><div class="meter"><i id="gpuUsageBar"></i></div><small>trainer-attributed</small></div>
-            <div class="hardware-card"><span>VRAM</span><strong id="gpuVram">—</strong><div class="meter"><i id="gpuVramBar"></i></div><small>dedicated allocation</small></div>
-            <div class="hardware-card"><span>GPU / HOTSPOT</span><strong id="gpuTemp">—</strong><small>AMD device sensors</small></div>
-            <div class="hardware-card"><span>GPU FAN</span><strong id="gpuFan">—</strong><small>revolutions / minute</small></div>
-            <div class="hardware-card"><span>CPU LOAD</span><strong id="cpuUsage">—</strong><div class="meter"><i id="cpuUsageBar"></i></div><small>trainer process tree</small></div>
-            <div class="hardware-card"><span>CPU TEMP</span><strong id="cpuTemp">N/A</strong><small>sensor unavailable</small></div>
-            <div class="hardware-card"><span>PROCESS RAM</span><strong id="cpuRam">—</strong><div class="meter"><i id="cpuRamBar"></i></div><small>trainer process tree</small></div>
-            <div class="hardware-card power-card"><span>EST. WORKLOAD DRAW</span><strong id="workloadPower">—</strong><small id="powerDetail">GPU board + attributed CPU</small></div>
-            <div class="hardware-card energy-card"><span>TRAINING ENERGY</span><strong id="energyUsed">—</strong><small>persisted while trainer runs</small></div>
+          <div class="launch panel">
+            <label>
+              Command
+              <select id="command">
+              </select>
+            </label>
+            <label class="check">
+              <input id="resume" type="checkbox">
+              Use selected job as resume source
+            </label>
+            <button id="start" class="primary">
+              Run command
+            </button>
           </div>
-          <p class="hardware-note" id="hardwareNote">Loading hardware sensors…</p>
-        </section>
-
-        <section class="panel sample-panel">
-          <div class="sample-copy">
-            <p class="eyebrow" id="sampleEyebrow">CHECKPOINT OBSERVATORY</p>
-            <h2>Generate a checkpoint sample</h2>
-            <p class="muted" id="sampleHelp">Runs on CPU so the RX 7800 XT can keep training. Samples use the latest completed checkpoint.</p>
-            <form id="sampleForm">
-              <div class="checkpoint-picker">
-                <label>Generation source
-                  <select id="sourceMode">
-                    <option value="current">Current training run</option>
-                    <option value="historical">Historical diffuser checkpoint</option>
-                  </select>
-                </label>
-                <div class="form-row historical-fields" id="historicalFields" hidden>
-                  <label>Historical run<select id="runSelect"></select></label>
-                  <label>Checkpoint<select id="checkpointSelect"></select></label>
+          <div class="job-layout">
+            <section class="panel history">
+              <h2>
+                Jobs
+              </h2>
+              <div id="jobs">
+              </div>
+            </section>
+            <section id="jobDetail" class="panel" hidden>
+              <div class="section-head">
+                <div>
+                  <h2 id="jobTitle">
+                  </h2>
+                  <code id="jobId">
+                  </code>
                 </div>
+                <button id="stop" class="danger">
+                  Stop job
+                </button>
               </div>
-              <label id="tagsLabel">Tags<input id="tagsInput" value="1girl, solo, looking_at_viewer, smile, portrait" /></label>
-              <div class="form-row">
-                <label id="seedLabel">Seed<input id="seedInput" type="number" value="357" /></label>
-                <label id="stepsLabel">Steps<input id="stepsInput" type="number" min="5" max="60" value="20" /></label>
-                <label id="guidanceLabel">Guidance<input id="guidanceInput" type="number" min="1" max="12" step="0.5" value="5" /></label>
+              <p id="jobState" role="status">
+              </p>
+              <p id="jobError" class="error">
+              </p>
+              <p id="jobTiming" class="hint">
+              </p>
+              <p id="resumeSource" class="hint">
+              </p>
+              <label>
+                Metric
+                <select id="metric">
+                </select>
+              </label>
+              <svg id="metricChart" viewBox="0 0 600 150" role="img" aria-label="Selected training metric">
+                <path id="metricLine" fill="none" stroke="currentColor" stroke-width="2"/>
+                </path>
+              </svg>
+              <p id="metricSummary" class="hint">
+                No metrics yet.
+              </p>
+              <div class="section-head">
+                <h2>
+                  Console
+                </h2>
+                <button id="refresh">
+                  Refresh
+                </button>
               </div>
-              <button class="button primary wide" id="sampleButton">Generate sample</button>
-            </form>
+              <pre id="logs" tabindex="0" aria-label="Job console">
+              </pre>
+              <h2>
+                Artifacts
+              </h2>
+              <ul id="artifacts">
+              </ul>
+            </section>
           </div>
-          <div class="sample-stage" id="sampleStage">
-            <div class="sample-empty"><span>◇</span><p>No dashboard samples yet</p><small>Generate one from the latest checkpoint.</small></div>
-          </div>
-        </section>
-        </div>
-
-        <section id="llmWorkspace" hidden>
-          <section class="hero-grid">
-            <article class="panel progress-panel">
-              <div class="panel-heading">
-                <div><p class="eyebrow">CAUSAL LANGUAGE MODEL</p><h2 id="llmTitle">Select an LLM run</h2></div>
-                <span class="checkpoint-badge" id="llmModeBadge">No run selected</span>
-              </div>
-              <p class="muted" id="llmSummary">Prepared LLM runs are isolated from the active diffusion workflow.</p>
-              <div class="llm-progress-block"><div class="stage-label"><strong>TRAINING PROGRESS</strong><span id="llmStep">—</span></div><div class="progress-track overall"><div id="llmProgressFill"></div></div><div class="progress-meta"><span id="llmProgressLabel">Waiting for first durable step</span><span id="llmEta">ETA —</span></div></div>
-              <div class="metric-row llm-metrics">
-                <div class="metric"><span>STEP TIME</span><strong id="llmStepTime">—</strong><small>seconds / optimizer step</small></div>
-                <div class="metric"><span>THROUGHPUT</span><strong id="llmThroughput">—</strong><small>tokens / second</small></div>
-                <div class="metric"><span>TOKENS SEEN</span><strong id="llmTokensSeen">—</strong><small>cumulative training tokens</small></div>
-                <div class="metric"><span>STORAGE</span><strong id="llmStorage">—</strong><small>HENTAI data volume free</small></div>
-              </div>
-            </article>
-            <aside class="panel action-panel">
-              <div><p class="eyebrow">LLM WORKSPACE</p><h2>Run setup</h2><p class="muted">Choose a prepared run to inspect its checkpoint history. Dataset audit, smoke, and launch controls will live here rather than altering image-training controls.</p></div>
-              <label>Prepared LLM run<select id="llmRunSelect"><option value="">No prepared LLM runs</option></select></label>
-              <p class="microcopy">The current UI is read-only while the protected diffusion run is active. Text-model actions remain explicit and never share the diffusion trainer.</p>
-            </aside>
-          </section>
-          <section class="content-grid">
-            <article class="panel chart-panel">
-              <div class="panel-heading compact"><div><p class="eyebrow">LEARNING SIGNAL</p><h2>Recent LLM loss</h2></div><span class="chart-range">LAST 240 STEPS</span></div>
-              <div class="llm-chart-key"><span><i class="train-key"></i>Training loss</span><span><i class="eval-key"></i>Validation loss</span><span id="llmValidationStatus">No validation result yet</span></div><svg id="llmLossChart" viewBox="0 0 760 240" role="img" aria-label="Recent LLM training and validation loss chart"><defs><linearGradient id="llmAreaGradient" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#65e4c2" stop-opacity=".35" /><stop offset="1" stop-color="#65e4c2" stop-opacity="0" /></linearGradient></defs><g class="grid-lines"></g><path class="area" fill="url(#llmAreaGradient)"></path><path class="line"></path><path class="eval-line"></path><g class="eval-points"></g></svg>
-            </article>
-            <article class="panel checkpoints-panel llm-checkpoint-panel">
-              <div class="panel-heading compact"><div><p class="eyebrow">RECOVERY POINTS</p><h2>LLM checkpoints</h2></div><span class="disk-label" id="llmRunState">Prepared</span></div>
-              <div class="checkpoint-list" id="llmCheckpointList"><p class="empty">Select a prepared LLM run.</p></div>
-            </article>
-          </section>
-          <section class="panel hardware-panel">
-            <div class="panel-heading compact"><div><p class="eyebrow">LIVE TELEMETRY</p><h2>LLM training hardware</h2></div><span class="chart-range" id="llmHardwareScope">LLM TRAINER IDLE</span></div>
-            <div class="hardware-grid">
-              <div class="hardware-card"><span>GPU LOAD</span><strong id="llmGpuUsage">—</strong><div class="meter"><i id="llmGpuUsageBar"></i></div><small>selected LLM trainer only</small></div>
-              <div class="hardware-card"><span>VRAM</span><strong id="llmGpuVram">—</strong><div class="meter"><i id="llmGpuVramBar"></i></div><small>dedicated allocation</small></div>
-              <div class="hardware-card"><span>GPU / HOTSPOT</span><strong id="llmGpuTemp">—</strong><small>AMD device sensors</small></div>
-              <div class="hardware-card"><span>GPU FAN</span><strong id="llmGpuFan">—</strong><small>revolutions / minute</small></div>
-              <div class="hardware-card"><span>CPU LOAD</span><strong id="llmCpuUsage">—</strong><div class="meter"><i id="llmCpuUsageBar"></i></div><small>selected LLM process tree</small></div>
-              <div class="hardware-card"><span>PROCESS RAM</span><strong id="llmCpuRam">—</strong><div class="meter"><i id="llmCpuRamBar"></i></div><small>selected LLM process tree</small></div>
-              <div class="hardware-card power-card"><span>EST. WORKLOAD DRAW</span><strong id="llmWorkloadPower">—</strong><small>GPU board + attributed CPU</small></div>
-              <div class="hardware-card energy-card"><span>TRAINING ENERGY</span><strong id="llmEnergyUsed">—</strong><small>persisted local estimate</small></div>
-            </div>
-          </section>
-          <section class="panel llm-chat-panel">
-            <div class="panel-heading compact"><div><p class="eyebrow">LOCAL PLAYGROUND</p><h2>Chat with a checkpoint</h2></div><span class="chart-range" id="llmChatStatus">SELECT A RUN</span></div>
-            <div class="llm-chat-transcript" id="llmChatTranscript" aria-live="polite">
-              <div class="chat-empty"><span>◇</span><p>Select a prepared LLM run to start a local conversation.</p><small>Generation will use an explicitly selected checkpoint and never starts automatically while training owns the GPU.</small></div>
-            </div>
-            <form class="llm-chat-composer" id="llmChatForm">
-              <textarea id="llmChatInput" rows="3" placeholder="Write a message…" disabled></textarea>
-              <div class="llm-chat-actions"><span class="microcopy" id="llmChatHelp">Generation backend not available for this run.</span><button class="button primary" id="llmChatSend" type="submit" disabled>Send</button></div>
-            </form>
-          </section>
         </section>
       </main>
-      <footer><span>HENTAI Studio</span><span id="refreshLabel">Refreshing…</span><span>Localhost only</span></footer>
     </div>
-    <div class="toast" id="toast" role="status" aria-live="polite"></div>
-    <script type="module" src="/assets/app.js"></script>
+    <dialog id="editor">
+      <form id="projectForm">
+        <div class="section-head">
+          <h2 id="editorTitle">
+            Register project
+          </h2>
+          <button type="button" id="closeEditor" aria-label="Close">
+            ✕
+          </button>
+        </div>
+        <label>
+          Project ID
+          <input id="fieldId" required pattern="[A-Za-z0-9][A-Za-z0-9_-]{0,63}" placeholder="my-project">
+        </label>
+        <label>
+          Display name
+          <input id="fieldName" required placeholder="My training project">
+        </label>
+        <label>
+          Absolute project directory
+          <input id="fieldRoot" required placeholder="/home/me/my-trainer or C:\Projects\trainer">
+        </label>
+        <label>
+          Commands (JSON argument arrays)
+          <textarea id="fieldCommands" required rows="5" spellcheck="false">
+            {"train": ["/path/to/project/.venv/bin/python", "train.py", "--output", "{output_dir}"]}
+          </textarea>
+        </label>
+        <p class="hint">
+          Arguments run directly, without a shell. Use the project's interpreter. Available substitutions: {project_root}, {output_dir}. Trainers also receive STUDIO_OUTPUT_DIR and, when resuming, STUDIO_RESUME_DIR.
+        </p>
+        <label>
+          Environment variables (JSON object)
+          <textarea id="fieldEnv" rows="2" spellcheck="false">
+            {}
+          </textarea>
+        </label>
+        <label>
+          Metrics file in job output directory
+          <input id="fieldMetrics" required value="metrics.jsonl">
+        </label>
+        <p class="hint">
+          JSONL or CSV with numeric columns; optional. Write checkpoints and other artifacts into STUDIO_OUTPUT_DIR.
+        </p>
+        <p id="formError" class="error" role="alert">
+        </p>
+        <button id="saveProject" class="primary" type="submit">
+          Save project
+        </button>
+      </form>
+    </dialog>
+    <script type="module" src="/assets/app.js">
+    </script>
   </body>
 </html>

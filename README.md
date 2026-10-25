@@ -1,82 +1,78 @@
 # HENTAI Studio
 
-HENTAI Studio is the local control room for [HENTAI](https://github.com/Lithium357/HENTAI): a web dashboard, local API, Windows WebView2 shell, AMD telemetry, and causal-LM workload tools.
+A standalone local dashboard for managing training projects. Register any project directory, configure its commands, and monitor jobs, logs, metrics, and artifacts in a browser.
 
-Diffusion model definitions, training, checkpoint sampling, and image generation remain in HENTAI. Studio installs as the distinct `hentai_studio` Python package and `hentai-studio` command, so the two projects can share an environment without overwriting each other's modules.
+Studio does **not** install, import, or require HENTAI, PyTorch, or any training framework. Each project uses its own environment and executable. [HENTAI](https://github.com/Lithium357/HENTAI) is a separate diffusion trainer; it also works without Studio.
 
-## Install
+## Install and start
 
-Clone both repositories. Use matching split revisions (HENTAI 0.2 and Studio 0.3) until both changes are merged.
+Requires Python 3.11+ on Windows or Linux.
 
-```bash
-git clone https://github.com/Lithium357/HENTAI.git
-git clone https://github.com/Lithium357/HENTAI-Studio.git
-cd HENTAI-Studio
-python3 -m venv .venv
-source .venv/bin/activate
-python -m pip install --upgrade pip
-python -m pip install -e ../HENTAI -e '.[dev]'
+```sh
+python -m venv .venv
+# Linux / WSL
+.venv/bin/python -m pip install .
+.venv/bin/hentai-studio serve --workspace ~/.hentai-studio
+# Windows PowerShell
+.venv\Scripts\python -m pip install .
+.venv\Scripts\hentai-studio serve --workspace "$env:LOCALAPPDATA\HENTAI Studio\workspace"
 ```
 
-Install the hardware-appropriate PyTorch build separately for diffusion training; HENTAI's `scripts/setup_wsl.sh` prepares its reference ROCm environment. Studio's stop/resume controls launch watchdogs from the engine checkout, which use **HENTAI/.venv**, so retain that environment as well. CPU checkpoint sampling uses the Studio environment; install CPU Torch there, or the matching ROCm build when sharing a GPU environment.
+Open <http://127.0.0.1:7860>. An empty workspace is ready to register projects immediately. The workspace contains Studio's registrations and job history; it can live anywhere writable. Training source code remains in each project's own directory.
 
-For language-model training, tokenization, packed caches, and checkpoint chat:
+The API executes local commands and has no authentication. Keep the service bound to loopback and use it as a local application. For Linux/ROCm training, run Studio inside Linux/WSL and register Linux project/interpreter paths. The Windows launcher is optional.
 
-```bash
-python -m pip install -e '.[llm]'
+## Register any trainer
+
+Click **Register** and enter an ID, a name, the absolute project directory, and named commands as JSON argument arrays:
+
+```json
+{
+  "train": ["/home/me/project/.venv/bin/python", "-u", "train.py", "--output", "{output_dir}"],
+  "resume": ["/home/me/project/.venv/bin/python", "-u", "train.py", "--resume-from-env"]
+}
 ```
 
-The base dashboard and metadata API do not import Torch, Diffusers, or Transformers during startup. Install both local repositories in the same pip transaction because `scratchtag-diffusion` is a private source dependency and is not published on PyPI.
+Use the trainer's real arguments; `--resume-from-env` above is an example, not a Studio flag. Studio executes the selected argument array directly in the project directory, with no shell or trainer imports. You can name commands `train`, `evaluate`, `export`, or anything else. Project-specific environments, GPUs, checkpoint formats, and training logic belong to the project.
 
-## Launch
-
-```bash
-hentai-studio dashboard \
-  --project /path/to/HENTAI \
-  --config configs/rx7800xt-scratch-v3-x4-512.json \
-  --storage-root /mnt/d/HENTAI-Data \
-  --host 127.0.0.1 --port 7860
-
-# API-only process, without the dashboard frontend:
-hentai-studio studio --project /path/to/HENTAI \
-  --storage-root /mnt/d/HENTAI-Data --port 7861
-```
-
-Open `http://127.0.0.1:7860`. The rewritten API is documented at `http://127.0.0.1:7860/api/docs`; its schema is at `/api/openapi.json`. See the [API reference](docs/API.md) for resources, examples, and errors. `--project` always refers to the **HENTAI engine checkout**, regardless of the current directory. Relative diffusion configs, data paths, runs, and watchdogs resolve from that project. LLM commands resolve their own config paths from the current directory. Choose an existing writable directory for `--storage-root`; managed LLM preparation creates run directories beneath it.
-
-The dashboard provides VAE/diffuser progress, stop/resume and promotion controls, CPU checkpoint sampling, historical checkpoint selection, CSV exports, process telemetry, and an LLM workspace with CPU checkpoint chat. Training and samples are explicit actions; merely starting the dashboard does not start training.
-
-## Windows launcher and telemetry
-
-Build `windows/HENTAIStudio/HENTAIStudio.csproj` with the .NET SDK, or run `windows/HENTAIStudio/build.ps1` to publish and install the shell with shortcuts. The existing launcher defaults are retained; configure these variables for another machine:
+Commands and environment values support `{project_root}` and `{output_dir}` substitutions. Studio also supplies:
 
 | Variable | Meaning |
-|---|---|
-| `HENTAI_WSL_DISTRO` | WSL distribution (default `Ubuntu`) |
-| `HENTAI_WSL_PROJECT` | Engine checkout (default `/home/masonturlington/HENTAI`) |
-| `HENTAI_STUDIO_WSL_PROJECT` | Studio checkout and `.venv` (default `/home/masonturlington/HENTAI-Studio`) |
-| `HENTAI_CONFIG` | Diffusion config relative to the engine checkout |
-| `HENTAI_HARDWARE_PROBE` | Optional telemetry executable override, set inside WSL |
+| --- | --- |
+| `STUDIO_OUTPUT_DIR` | New job's absolute output directory |
+| `STUDIO_JOB_ID` | Unique job ID |
+| `STUDIO_PROJECT_ID` | Registered project ID |
+| `STUDIO_RESUME_DIR` | Previous job's output directory, only when a resume source is selected |
 
-The bundled telemetry executable is installed with the Python package. Its Rust source is in `hardware_probe/` with ADLX sources and licenses under `vendor/ADLX/`. Rebuild with `cargo build --manifest-path hardware_probe/Cargo.toml --release`, then copy `hardware_probe/target/release/hentai-hardware-probe.exe` to `src/hentai_studio/bin/hardware_probe.exe` before building a wheel. Telemetry can be unavailable on unsupported platforms without preventing dashboard startup.
+Point your trainer's output argument at `{output_dir}`, read the environment variables, or use a small project-owned wrapper. Trainers that always write to an existing fixed directory still execute and stream logs, but those external files are not automatically imported into Studio. Studio never guesses checkpoint locations or model stages.
 
-## Documentation and verification
+Write numeric rows to `metrics.jsonl` (or configure a relative `.csv`/`.jsonl` filename). Example:
 
-- [Migration and repository boundary](docs/MIGRATION.md)
-- [Dashboard](docs/DASHBOARD.md)
-- [CLI](docs/CLI.md)
-- [Development](docs/DEVELOPMENT.md)
-- [Dashboard architecture](docs/ARCHITECTURE.md)
-- [API reference](docs/API.md)
-- [LLM dataset contract](docs/LLM_DATASET.md)
-- [LLM training](docs/LLM_TRAINING.md)
-- [LLM throughput plan](docs/LLM_THROUGHPUT_PLAN.md)
-- [ROCm experiment log](docs/ROCM_EXPERIMENT_LOG.md)
-
-```bash
-python -m pip install -e ../HENTAI -e '.[dev,llm]'
-python -m pytest -q
-git diff --check
+```json
+{"step": 1, "loss": 2.1, "accuracy": 0.6}
+{"step": 2, "loss": 1.8, "accuracy": 0.7}
 ```
 
-No datasets, model weights, token caches, logs, or run state are shipped. See [source provenance](SOURCE_PROVENANCE.md) for the extracted source's original terms and upstream revision.
+The dashboard plots any numeric column, uses `step` for the horizontal axis when present, and offers downloads for files inside the job output directory. Metrics are optional. See [the API](docs/API.md) for registration and job endpoints.
+
+## Try without a model
+
+[examples/demo_train.py](examples/demo_train.py) uses only the Python standard library. Register this repository as the project root and set commands to your Python executable followed by `-u`, `examples/demo_train.py`. The `train` and `resume` commands can use the same argument array: the demo reads `STUDIO_RESUME_DIR`. Run, stop, and resume from a selected finished job to test the full workflow. [examples/project.json](examples/project.json) is a registration template; replace its absolute paths first.
+
+## Job behavior
+
+- Each project may have one active job; different projects can run concurrently.
+- Each job snapshots its project configuration and has separate logs and outputs.
+- Stopping terminates the job's trainer process tree. It does not guarantee a final checkpoint; use the trainer's normal checkpoint schedule.
+- Dashboard shutdown leaves job supervisors running. Reopen the same workspace to monitor or stop them.
+- A missing supervisor becomes `interrupted`. Inspect the project processes before restarting; Studio does not terminate an unverified PID or adopt externally started trainers.
+- Resume launches a new job using your selected command and supplies the previous output directory. Your trainer decides which checkpoint to load.
+- Unregistering removes the registration only. Project source and job history stay on disk. Re-registering the same ID makes its history visible again.
+
+## Optional tools and desktop shell
+
+Existing causal-LM command line tools are available with `pip install '.[llm]'`; they are optional utilities, not dependencies of the dashboard. See [CLI](docs/CLI.md) and [LLM training](docs/LLM_TRAINING.md).
+
+The optional Windows WebView2 shell uses `STUDIO_EXECUTABLE` (full path to `hentai-studio.exe`, or an executable on PATH) and `STUDIO_WORKSPACE`. It connects to localhost:7860 or starts Studio natively. It requires no HENTAI checkout, fixed user paths, or WSL installation. Build with `dotnet build windows/HENTAIStudio/HENTAIStudio.csproj --configuration Release`.
+
+See [architecture](docs/ARCHITECTURE.md), [development](docs/DEVELOPMENT.md), and [migration](docs/MIGRATION.md). Licensing and extraction history are retained in `LICENSE`, `LICENSE.HENTAI`, and `SOURCE_PROVENANCE.md`.

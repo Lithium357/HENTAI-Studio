@@ -62,7 +62,7 @@ internal sealed class StudioForm : Form
         {
             if (!await DashboardReadyAsync())
             {
-                statusLabel.Text = "Starting the WSL training dashboard…";
+                statusLabel.Text = "Starting the local training workspace…";
                 StartDashboard();
                 if (!await WaitForDashboardAsync(TimeSpan.FromSeconds(45)))
                 {
@@ -121,33 +121,21 @@ internal sealed class StudioForm : Form
 
     private static void StartDashboard()
     {
-        var distribution = Environment.GetEnvironmentVariable("HENTAI_WSL_DISTRO") ?? "Ubuntu";
-        var project = Environment.GetEnvironmentVariable("HENTAI_WSL_PROJECT")
-            ?? "/home/masonturlington/HENTAI";
-        var studioProject = Environment.GetEnvironmentVariable("HENTAI_STUDIO_WSL_PROJECT")
-            ?? "/home/masonturlington/HENTAI-Studio";
-        var config = Environment.GetEnvironmentVariable("HENTAI_CONFIG")
-            ?? "configs/rx7800xt-scratch-v3-x4-512.json";
+        var executable = Environment.GetEnvironmentVariable("STUDIO_EXECUTABLE") ?? "hentai-studio";
+        var workspace = Environment.GetEnvironmentVariable("STUDIO_WORKSPACE")
+            ?? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "HENTAI Studio", "workspace");
         var start = new ProcessStartInfo
         {
-            FileName = "wsl.exe",
+            FileName = executable,
             UseShellExecute = false,
             CreateNoWindow = true,
             WindowStyle = ProcessWindowStyle.Hidden
         };
-        start.ArgumentList.Add("-d");
-        start.ArgumentList.Add(distribution);
-        start.ArgumentList.Add("--cd");
-        start.ArgumentList.Add(studioProject);
-        start.ArgumentList.Add("--");
-        start.ArgumentList.Add(".venv/bin/hentai-studio");
-        start.ArgumentList.Add("dashboard");
-        start.ArgumentList.Add("--project");
-        start.ArgumentList.Add(project);
-        start.ArgumentList.Add("--config");
-        start.ArgumentList.Add(config);
+        start.ArgumentList.Add("serve");
+        start.ArgumentList.Add("--workspace");
+        start.ArgumentList.Add(workspace);
         start.ArgumentList.Add("--host");
-        start.ArgumentList.Add("0.0.0.0");
+        start.ArgumentList.Add("127.0.0.1");
         start.ArgumentList.Add("--port");
         start.ArgumentList.Add("7860");
         Process.Start(start);
@@ -180,8 +168,8 @@ internal sealed class StudioForm : Form
     }
 
     private void ShowStartupFailure() => ShowError(
-        "HENTAI Studio could not start its WSL dashboard.\n\n" +
-        "Confirm HENTAI_WSL_DISTRO, HENTAI_WSL_PROJECT, HENTAI_STUDIO_WSL_PROJECT, and HENTAI_CONFIG are correct, then check the project's logs directory.");
+        "HENTAI Studio could not start its local dashboard.\n\n" +
+        "Install hentai-studio in a Python environment and set STUDIO_EXECUTABLE to its full executable path. Optionally set STUDIO_WORKSPACE to your workspace directory.");
 
     private void ShowError(string message)
     {

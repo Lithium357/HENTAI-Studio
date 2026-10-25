@@ -1,35 +1,14 @@
-# Repository split (0.2)
+# Migrating to standalone Studio 0.4
 
-| Responsibility | Repository / package |
-|---|---|
-| Image manifests, vocabulary, models, VAE/diffuser training, image inference | HENTAI / `scratchtag` |
-| Diffusion configs, watchdogs, architecture and model probes | HENTAI |
-| Installed CPU checkpoint samplers | HENTAI / `scratchtag.tools` |
-| Dashboard HTTP server, static UI, run registry, process control | HENTAI-Studio / `hentai_studio` |
-| Workload adapters, LLM training, caches, tokenizer, inference | HENTAI-Studio / `hentai_studio.workloads` |
-| Windows launcher, telemetry helper, ADLX vendor tree | HENTAI-Studio |
+This release intentionally replaces the model-specific API and CLI without compatibility aliases.
 
-The dependency points from Studio to `scratchtag-diffusion>=0.2,<0.3`. There is no Studio dependency in HENTAI. The Python namespaces are distinct; neither distribution installs files inside the other's namespace. Diffusion configs and checkpoint formats are unchanged.
+1. Install Studio alone. Remove any requirement to install a sibling HENTAI checkout. The default install needs only web/runtime dependencies; ML packages remain optional.
+2. Launch `hentai-studio serve --workspace PATH`. Replace old dashboard/studio commands and engine/config/storage flags.
+3. Register each trainer's directory and argument arrays through the UI or POST /api/projects. Point commands at the trainer's own interpreter. HENTAI is one possible external project, not a special workload type.
+4. Route trainer output to {output_dir} or STUDIO_OUTPUT_DIR. If necessary, write a wrapper in the training project that reads its config, chooses output/checkpoint paths and emits generic numeric metrics. Studio does not modify HENTAI's config format or training implementation.
+5. Replace /api/runs and /api/diffusion calls with /api/projects and /api/jobs. Use /api/docs for the current schema.
+6. Replace HENTAI_WSL_PROJECT, HENTAI_CONFIG and launcher-specific engine variables with STUDIO_EXECUTABLE and optionally STUDIO_WORKSPACE for the Windows shell. Linux/WSL projects should be served by Studio running in that environment.
 
-## Existing installation
+Old runs/checkpoints remain untouched. They are not imported or adopted automatically. Legacy diffusion sampling, VAE promotion, fixed watchdog scripts, LLM chat and workload-specific dashboard adapters are removed from the generic API. Invoke training, evaluation, generation or export tools as project commands instead. Existing optional LLM CLI utilities still work independently.
 
-1. Keep diffusion datasets, configs, vocabularies, runs, logs, and the engine `.venv` where they are. No run data needs to be moved or converted.
-2. Clone Studio alongside HENTAI and install both local packages into Studio's environment: `python -m pip install -e ../HENTAI -e '.[dev]'`. Install the appropriate Torch runtime for sampling. Add Studio's `[llm]` extra for LLM execution.
-3. Replace `scratchtag dashboard --config FILE` with `hentai-studio dashboard --project /absolute/path/to/HENTAI --config FILE`.
-4. Replace `scratchtag studio ...` with `hentai-studio studio --project /absolute/path/to/HENTAI ...`.
-5. Replace `scratchtag llm-*` with `hentai-studio llm-*`; imports move from `scratchtag.workloads.llm` to `hentai_studio.workloads.llm`. LLM reference profiles now live in Studio's `configs/`. Update config paths in any external launch scripts.
-6. Existing LLM storage roots, `run.json`, copied configs, packed caches, and checkpoints remain valid. Keep their configured absolute paths. Relative LLM paths retain their current-working-directory semantics.
-7. Rebuild the Windows launcher from Studio. Set `HENTAI_STUDIO_WSL_PROJECT` to Studio and retain `HENTAI_WSL_PROJECT` for the engine. Studio's `.venv/bin/hentai-studio` launches the dashboard; HENTAI's `.venv/bin/scratchtag` still executes diffusion watchdog stages.
-8. To use a custom rebuilt GPU probe, set `HENTAI_HARDWARE_PROBE` in the dashboard's environment. The installed Studio package otherwise supplies its bundled executable.
-
-The legacy `scratchtag dashboard`, `scratchtag studio`, and `scratchtag llm-*` commands are removed. Install both split revisions before switching launchers. Existing running processes keep their loaded code; schedule upgrades between runs to avoid mixing old and new environments.
-
-## Backend interface
-
-Studio's diffusion adapter validates configs through `scratchtag.config.load_config` and reads the existing run/checkpoint files. Sampling uses `python -m scratchtag.tools.vae_snapshot`, `python -m scratchtag.tools.diffusion_checkpoint_sample`, or `python -m scratchtag.tools.sdxl_checkpoint_sample` with the Studio interpreter. Resume uses the engine's watchdog scripts. Static assets and the hardware executable resolve from the installed Studio package, never the engine checkout.
-
-The original `scripts/*checkpoint_sample.py` and `scripts/vae_snapshot.py` paths remain compatibility wrappers in HENTAI. They delegate to the installed engine modules.
-
-## Studio 0.3 API rewrite
-
-Studio 0.3 uses FastAPI/Uvicorn and the resource API documented in [API.md](API.md). Reinstall Studio's updated dependencies when upgrading. The old `/api/v1`, generic `/api/action`, and legacy dashboard/download URLs are removed rather than redirected. The bundled frontend is updated with the API. External clients should use the generated `/api/openapi.json` schema. This HTTP rewrite does not change engine configs, datasets, run metadata, or checkpoint files.
+HENTAI's model package has no Studio dependency. No HENTAI source changes are needed to install or launch Studio. The two repositories can be installed, tested and released separately.

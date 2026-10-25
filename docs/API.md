@@ -1,138 +1,66 @@
-# Studio API (0.3)
+# Studio API 0.4
 
-The API lives under `/api`. Run the dashboard on port 7860, then open `/api/docs` for interactive endpoint documentation or `/api/openapi.json` for the generated schema. API-only mode normally uses port 7861. Both modes expose the same schema; diffusion operations return `503 diffusion_not_configured` when no diffusion config was supplied at startup.
+The API manages arbitrary local projects and external jobs. Start with `hentai-studio serve --workspace /absolute/workspace`. Swagger UI: `/api/docs`; OpenAPI: `/api/openapi.json`. JSON fields use snake_case. Collection resources return `{"items": [...]}`. No model-specific routes or workload adapters are required.
 
-The previous `/api/v1`, `/api/status`, `/api/action`, and top-level download URLs are removed. Studio's browser client uses this API directly.
+| Method | Path | Behavior |
+| --- | --- | --- |
+| GET | `/api/health` | Version, workspace path, free disk bytes |
+| GET / POST | `/api/projects` | List / register (201) |
+| GET / PUT / DELETE | `/api/projects/{id}` | Read / replace / unregister (204) |
+| GET | `/api/jobs?project_id=example` | List history, newest first; omit filter for all projects |
+| POST | `/api/projects/{id}/jobs` | Start configured command (202) |
+| GET | `/api/jobs/{id}` | Snapshot and current lifecycle state |
+| POST | `/api/jobs/{id}/stop` | Request process-tree termination (202) |
+| GET | `/api/jobs/{id}/logs` | UTF-8 console output with byte offsets |
+| GET | `/api/jobs/{id}/metrics` | Recent numeric JSONL / CSV records |
+| GET | `/api/jobs/{id}/artifacts` | Output files and byte sizes |
+| GET | `/api/jobs/{id}/artifacts/{path}` | Download a file inside the output directory |
 
-## Conventions
+## Register a project
 
-- JSON fields use `snake_case`. Byte counts end in `_bytes`; timestamps are Unix seconds. Resolutions use pixels.
-- Collections return `{"items": [...]}`. A resource response is the resource itself, without another success envelope.
-- Run IDs include their workload: `diffusion:main-run` or `llm.causal:my-run`. Encode IDs when placing them in a URL. Identically named diffusion and LLM runs are distinct resources.
-- Checkpoint IDs are opaque strings. Use values returned by the checkpoint endpoints rather than constructing filesystem paths.
-- Requests reject unknown fields, invalid types, and out-of-range values. JSON bodies are limited to 128 KiB, including streamed bodies.
-- The server is local and unauthenticated. Training controls execute only against the configured diffusion project.
-
-## Resources
-
-| Method | Path | Result |
-|---|---|---|
-| GET | `/api/health` | Service version and whether diffusion is configured; no model loading |
-| GET | `/api/storage` | Configured storage root, free bytes, and total bytes |
-| GET | `/api/runs` | Registered runs; optionally filter with `?workload=diffusion` or `?workload=llm.causal` |
-| GET | `/api/runs/{run_id}` | Run state, progress, telemetry, loss history, and capabilities |
-| GET | `/api/runs/{run_id}/checkpoints` | Complete and incomplete checkpoints |
-| POST | `/api/runs/{run_id}/chat/completions` | One CPU chat completion from the latest completed LoRA weights checkpoint |
-| GET | `/api/diffusion/status` | Configured trainer state, progress, current checkpoints, telemetry, and sampling status |
-| GET | `/api/diffusion/checkpoints` | Historical diffusion runs grouped with sampleable checkpoints |
-| GET | `/api/diffusion/samples` | Newest generated images and their download URLs |
-| POST | `/api/diffusion/samples` | Start a CPU sample; returns `202` and its sampling status |
-| GET | `/api/diffusion/sampling` | Current or last sampling job, including its exit result |
-| GET | `/api/diffusion/samples/{name}` | Download an image using the exact gallery filename |
-| POST | `/api/diffusion/training/pause` | Request a pause and signal only this run's trainers and workers |
-| POST | `/api/diffusion/training/resume` | Request watchdog startup or resume an existing paused watchdog |
-| POST | `/api/diffusion/training/promote-vae` | Promote a safe VAE checkpoint and request diffuser startup |
-| GET | `/api/diffusion/progress/{stage}.csv` | Download a progress log; stage is `vae` or `diffusion` |
-
-`/api/runs` is a read-oriented registry spanning diffusion and LLM runs. `/api/diffusion` operates the one diffusion project/config selected at startup. It does not silently change the active trainer to a run selected in the registry or checkpoint catalog.
-
-## Observe runs
-
-```bash
-curl 'http://127.0.0.1:7860/api/runs?workload=llm.causal'
-curl 'http://127.0.0.1:7860/api/runs/llm.causal%3Amy-run'
-curl 'http://127.0.0.1:7860/api/diffusion/status'
-```
-
-A run detail includes `capabilities.chat`. It is true only when local LoRA checkpoint chat can be attempted. A scratch-model checkpoint does not imply LoRA chat support. Clients should check the capability instead of guessing from checkpoint filenames.
-
-The diffusion status response omits the historical catalog and gallery; fetch their collection endpoints separately. This keeps routine trainer status distinct from browsing saved artifacts.
-
-## Training commands
-
-```bash
-curl -X POST http://127.0.0.1:7860/api/diffusion/training/pause
-curl -X POST http://127.0.0.1:7860/api/diffusion/training/resume
-```
-
-These endpoints take no request body and return an acknowledgement such as:
-
-```json
-{"command":"resume","status":"requested"}
-```
-
-`202` acknowledges the request; it does not assert that a trainer has already reached a running state. Observe `/api/diffusion/status` afterward. VAE promotion uses the explicit `/training/promote-vae` endpoint and retains the existing irreversible stage-transition semantics. An incompatible fixed-path watchdog returns a conflict instead of launching a different run.
-
-## Create a sample
-
-```bash
-curl -X POST http://127.0.0.1:7860/api/diffusion/samples \
-  -H 'Content-Type: application/json' \
-  -d '{"source":"current","tags":["portrait","blue_hair"],"seed":357,"steps":20,"guidance":5}'
-```
-
-For a historical checkpoint, choose the IDs returned by `/api/diffusion/checkpoints`:
+`POST /api/projects`:
 
 ```json
 {
-  "source": "checkpoint",
-  "run_id": "diffusion:previous-run",
-  "checkpoint_id": "step-110000",
-  "tags": ["portrait"],
-  "seed": 357,
-  "steps": 20,
-  "guidance": 5
+  "id": "my-trainer",
+  "name": "My trainer",
+  "root": "/home/me/trainer",
+  "commands": {
+    "train": ["/home/me/trainer/.venv/bin/python", "-u", "train.py", "--output", "{output_dir}"]
+  },
+  "environment": {"CUDA_VISIBLE_DEVICES": "0"},
+  "metrics_file": "metrics.jsonl"
 }
 ```
 
-`source` defaults to `current`. `checkpoint` requires both IDs; `current` rejects historical selection fields. Tags are an array, steps are 5–60, guidance is 1–12, and the seed is an integer from 0 through 2^63−1. Current sampling requires a saved checkpoint. VAE reconstruction selects a random record and seed as before.
+The root must exist and be absolute on the Studio host. IDs and command names use letters, numbers, underscores and hyphens (1–64 characters, first alphanumeric). Commands are nonempty argument arrays; unknown fields are rejected. Environment values are strings. `metrics_file` must be a relative `.jsonl` or `.csv` path inside the job output. PUT replaces the definition and requires the body ID to equal the URL ID. Active projects cannot be edited or unregistered.
 
-The accepted response includes `Location: /api/diffusion/sampling`. Poll that resource for `idle`, `running`, `succeeded`, or `failed`. Completion retains `started_at`, `finished_at`, and `exit_code`; a failed worker is not reported as merely idle. Only one sample job runs at a time. Fetch the gallery after a successful job; download URLs are provided by the server.
+Studio executes commands with the project root as cwd, inherits its own process environment, and overlays configured environment values. It does not activate environments automatically: use the project's interpreter or executable. `{project_root}` and `{output_dir}` substitutions work in arguments and environment values. See the README for supplied `STUDIO_*` variables. Definitions, including configured environment values, are stored in the local workspace; use it as private application data.
 
-## CPU chat
+## Start and resume
 
-```bash
-curl -X POST 'http://127.0.0.1:7860/api/runs/llm.causal%3Amy-run/chat/completions' \
-  -H 'Content-Type: application/json' \
-  -d '{"messages":[{"role":"user","content":"Hello"}],"max_new_tokens":128}'
-```
-
-History contains 1–48 messages with `system`, `user`, or `assistant` roles and nonempty text. `max_new_tokens` is 1–256. A response identifies the selected checkpoint and execution device:
+`POST /api/projects/my-trainer/jobs`:
 
 ```json
-{
-  "message": {"role":"assistant","content":"Hello."},
-  "checkpoint_id": "weights/step-500",
-  "device": "cpu"
-}
+{"command": "train", "resume_from": null}
 ```
 
-Model loading, reply generation, and conditional unloading are serialized so another request cannot unload an in-use model. The endpoint is synchronous; clients should allow time for CPU inference.
+The result includes the job ID, immutable project snapshot, command, timestamps, state, exit code, supervisor identity and optional error. A resume source must be a finished job of the same project. Studio supplies its output directory as `STUDIO_RESUME_DIR`; it does not infer or load a checkpoint. Select the appropriate command for the trainer.
 
-## Errors
+States: `starting`, `running`, `stopping`, `succeeded`, `failed`, `stopped`, `interrupted`. A successful exit is `succeeded`; nonzero exit or failure to launch is `failed`. Stop is asynchronous and uses a durable request file. A second start for an active project returns 409. Different projects may run at once. A missing supervisor is marked interrupted after a short startup grace period, without signaling any PID.
 
-Every application error has the same shape:
+## Output observation
+
+Logs accept `offset` (nonnegative byte offset), `limit` (1–65536; default 65536), and `tail=true` (ignore offset and read the final limit bytes). Result: `text`, `next_offset`, `size`. Invalid UTF-8 fragments are replaced. stdout and stderr share one append-only console log. For supervisor diagnostics inspect `jobs/{id}/supervisor.log` in the workspace.
+
+Metrics return `items` and `truncated`. The service reads at most the recent 1 MiB and returns at most 1,000 numeric rows. Invalid/incomplete JSONL records and nonnumeric/nonfinite values are skipped. CSV requires a header row and newline-terminated records; use one record per line without embedded line breaks. `step` is optional. A missing metrics file returns an empty collection.
+
+Artifacts return `items` with relative `path` and byte `size`, plus `truncated`. Traversal is capped at 2,000 entries; directory links are not followed, and paths resolving outside the output directory cannot be downloaded. External run directories and pre-existing training processes are not discovered automatically.
+
+## Errors and transport
 
 ```json
-{
-  "error": {
-    "code": "validation_error",
-    "message": "The request does not match the API schema.",
-    "details": [{"field":["body","steps"],"message":"Input should be less than or equal to 60","type":"less_than_equal"}]
-  }
-}
+{"error": {"code": "project_busy", "message": "This project already has an active job.", "details": []}}
 ```
 
-| Status | Meaning |
-|---|---|
-| 400 | Invalid HTTP body framing or an unreadable body |
-| 404 | Resource or route not found |
-| 405 | Method not supported for the resource |
-| 408 | Body reception timed out |
-| 409 | Valid request conflicts with run/checkpoint/training state |
-| 413 | Body exceeds the size limit |
-| 422 | Invalid JSON shape, field, type, or range |
-| 500 | Unexpected server fault; details are logged rather than returned |
-| 503 | A required configuration, storage root, engine, or model backend is unavailable |
-
-Malformed HTTP that the server rejects before it reaches the application may use the HTTP server's own error response. The generated OpenAPI schema is the authoritative field-level contract.
+404 identifies missing resources, 409 lifecycle conflicts, 422 invalid fields or command selection, 503 supervisor launch failures. Unexpected failures return a generic 500 and are logged on the server. JSON bodies are capped at 128 KiB, including streamed requests, with a 15-second receive timeout. Responses disable caching and content sniffing. The local service has no authentication; keep it bound to loopback.

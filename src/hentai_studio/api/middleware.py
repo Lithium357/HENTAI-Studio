@@ -1,4 +1,5 @@
 """Only transport policy lives here; routing and validation belong to FastAPI."""
+
 import asyncio
 
 from starlette.types import ASGIApp, Receive, Scope, Send
@@ -15,9 +16,15 @@ class RequestLimits:
             return await self.app(scope, receive, send)
         lengths = [value for key, value in scope["headers"] if key == b"content-length"]
         if lengths and (len(lengths) != 1 or not lengths[0].isdigit()):
-            return await error_response(400, "invalid_content_length", "Content-Length must be a nonnegative integer.")(scope, receive, send)
+            return await error_response(
+                400,
+                "invalid_content_length",
+                "Content-Length must be a nonnegative integer.",
+            )(scope, receive, send)
         if lengths and int(lengths[0]) > self.max_bytes:
-            return await error_response(413, "request_too_large", "The request body exceeds 128 KiB.")(scope, receive, send)
+            return await error_response(
+                413, "request_too_large", "The request body exceeds 128 KiB."
+            )(scope, receive, send)
         body = bytearray()
         try:
             async with asyncio.timeout(self.timeout):
@@ -27,13 +34,21 @@ class RequestLimits:
                         return
                     body.extend(message.get("body", b""))
                     if len(body) > self.max_bytes:
-                        return await error_response(413, "request_too_large", "The request body exceeds 128 KiB.")(scope, receive, send)
+                        return await error_response(
+                            413,
+                            "request_too_large",
+                            "The request body exceeds 128 KiB.",
+                        )(scope, receive, send)
                     if not message.get("more_body", False):
                         break
         except TimeoutError:
-            return await error_response(408, "request_timeout", "The request body was not received in time.")(scope, receive, send)
+            return await error_response(
+                408, "request_timeout", "The request body was not received in time."
+            )(scope, receive, send)
         if lengths and len(body) != int(lengths[0]):
-            return await error_response(400, "incomplete_body", "The body length does not match Content-Length.")(scope, receive, send)
+            return await error_response(
+                400, "incomplete_body", "The body length does not match Content-Length."
+            )(scope, receive, send)
         delivered = False
 
         async def bounded_receive():
@@ -53,8 +68,11 @@ class ResponseHeaders:
     async def __call__(self, scope: Scope, receive: Receive, send: Send):
         async def send_response(message):
             if message["type"] == "http.response.start":
-                message["headers"] = [*message.get("headers", []),
-                                      (b"cache-control", b"no-store"), (b"x-content-type-options", b"nosniff")]
+                message["headers"] = [
+                    *message.get("headers", []),
+                    (b"cache-control", b"no-store"),
+                    (b"x-content-type-options", b"nosniff"),
+                ]
             await send(message)
 
         await self.app(scope, receive, send_response)
