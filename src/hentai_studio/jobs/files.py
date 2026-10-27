@@ -13,7 +13,13 @@ def now():
 
 
 def read_json(path):
-    return json.loads(Path(path).read_text(encoding="utf-8"))
+    for attempt in range(50):
+        try:
+            return json.loads(Path(path).read_text(encoding="utf-8"))
+        except PermissionError:
+            if attempt == 49:
+                raise
+            time.sleep(0.02)
 
 
 def atomic_json(path, value):

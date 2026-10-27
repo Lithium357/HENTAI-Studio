@@ -76,3 +76,34 @@ class ResponseHeaders:
             await send(message)
 
         await self.app(scope, receive, send_response)
+
+
+class LocalRequests:
+    """Reject foreign origins and DNS-rebinding hosts on this command-executing API."""
+
+    def __init__(self, app: ASGIApp, hosts: list[str]):
+        self.app = app
+        self.hosts = {host.lower() for host in hosts}
+
+    async def __call__(self, scope, receive, send):
+        if scope["type"] != "http":
+            return await self.app(scope, receive, send)
+        from urllib.parse import urlsplit
+
+        headers = {
+            key.lower(): value.decode("latin-1") for key, value in scope["headers"]
+        }
+        host = headers.get(b"host", "")
+        try:
+            hostname = urlsplit("//" + host).hostname
+            origin = headers.get(b"origin")
+            foreign = origin is not None and origin != f"{scope['scheme']}://{host}"
+        except ValueError:
+            hostname, foreign = None, True
+        if hostname not in self.hosts or foreign:
+            return await error_response(
+                403,
+                "untrusted_request",
+                "Use Studio through its configured local address.",
+            )(scope, receive, send)
+        return await self.app(scope, receive, send)

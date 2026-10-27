@@ -1,7 +1,9 @@
 import sys
 from unittest.mock import Mock
+
 import pytest
 from fastapi.testclient import TestClient
+
 from hentai_studio.api.app import create_app
 
 
@@ -12,7 +14,9 @@ def app(tmp_path):
 
 @pytest.fixture
 def client(app):
-    with TestClient(app, raise_server_exceptions=False) as client:
+    with TestClient(
+        app, raise_server_exceptions=False, base_url="http://127.0.0.1"
+    ) as client:
         yield client
 
 
@@ -28,7 +32,7 @@ def definition(tmp_path):
 def test_empty_workspace_serves_dashboard_and_typed_api(client):
     assert client.get("/api/projects").json() == {"items": []}
     assert client.get("/api/jobs").json() == {"items": []}
-    assert client.get("/api/health").json()["version"] == "0.4.0"
+    assert client.get("/api/health").json()["version"] == "0.5.0"
     assert 'type="module"' in client.get("/").text
     for asset in ("api", "app", "metrics", "poller"):
         assert client.get(f"/assets/{asset}.js").status_code == 200
@@ -58,13 +62,15 @@ def test_project_crud_is_persistent_and_never_changes_training_files(
     [
         {"commands": {"train": "python train.py"}},
         {"commands": {"train": []}},
-        {"commands": {"train": ["python", ""]}},
+        {"commands": {"train": [""]}},
         {"commands": {"../bad": ["python"]}},
         {"id": "../escape"},
         {"id": "CON"},
         {"id": "com1"},
         {"root": "relative/project"},
         {"metrics_file": "../private.jsonl"},
+        {"metrics_file": r"\metrics.csv"},
+        {"metrics_file": "file:stream.csv"},
         {"metrics_file": "C:\\secret.csv"},
         {"metrics_file": "/tmp/out.csv"},
         {"metrics_file": "file.txt"},
@@ -134,3 +140,42 @@ def test_invalid_job_request_never_spawns(client, app):
     assert response.status_code == 422
     app.state.workspace.start_job.assert_not_called()
     assert client.get("/api/jobs/any/logs?limit=1000000").status_code == 422
+
+
+@pytest.mark.parametrize(
+    "headers",
+    [
+        {"Host": "attacker.example"},
+        {"Origin": "https://attacker.example"},
+        {"Origin": "null"},
+        {"Origin": "http://127.0.0.1:9999"},
+    ],
+)
+def test_command_api_rejects_untrusted_browser_requests(client, app, headers):
+    app.state.workspace.start_job = Mock()
+    response = client.post(
+        "/api/projects/any/jobs", json={"command": "train"}, headers=headers
+    )
+    assert (
+        response.status_code == 403
+        and response.json()["error"]["code"] == "untrusted_request"
+    )
+    app.state.workspace.start_job.assert_not_called()
+
+
+def test_same_origin_and_cli_requests_are_allowed(client):
+    assert (
+        client.get("/api/health", headers={"Origin": "http://127.0.0.1"}).status_code
+        == 200
+    )
+    assert client.get("/api/health").json()["application"] == "hentai-studio"
+
+
+def test_workspace_corruption_is_reported_without_crashing_dashboard(client, app):
+    (app.state.workspace.projects / "broken.json").write_text("invalid")
+    response = client.get("/api/health")
+    assert response.status_code == 200
+    assert response.json()["status"] == "degraded"
+    assert response.json()["issues"][0]["resource"] == "projects/broken.json"
+    assert client.get("/api/projects").json() == {"items": []}
+    assert client.get("/").status_code == 200

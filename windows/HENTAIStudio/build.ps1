@@ -1,49 +1,42 @@
+param(
+    [switch]$Install,
+    [string]$Python = 'python'
+)
 $ErrorActionPreference = 'Stop'
-
 $sourceRoot = Split-Path -Parent $MyInvocation.MyCommand.Path
 $projectRoot = Split-Path (Split-Path $sourceRoot -Parent) -Parent
 $publishRoot = Join-Path $projectRoot 'dist\HENTAIStudio'
-$installRoot = Join-Path $env:LOCALAPPDATA 'Programs\HENTAI Studio'
-$executable = Join-Path $installRoot 'HENTAI Studio.exe'
-$env:DOTNET_CLI_HOME = Join-Path $env:LOCALAPPDATA 'HENTAI Studio\dotnet'
+$env:DOTNET_CLI_HOME = Join-Path $projectRoot '.dotnet-home'
 $env:DOTNET_SKIP_FIRST_TIME_EXPERIENCE = '1'
 $env:DOTNET_CLI_TELEMETRY_OPTOUT = '1'
 
-if (Test-Path -LiteralPath $publishRoot) {
-    Remove-Item -LiteralPath $publishRoot -Recurse -Force
-}
-
 dotnet publish (Join-Path $sourceRoot 'HENTAIStudio.csproj') `
-    --configuration Release `
-    --runtime win-x64 `
-    --self-contained false `
-    --output $publishRoot `
-    -p:PublishSingleFile=true `
-    -p:IncludeNativeLibrariesForSelfExtract=true `
-    -p:DebugType=None `
-    -p:DebugSymbols=false
+    --configuration Release --runtime win-x64 --self-contained false `
+    --output $publishRoot -p:PublishSingleFile=true `
+    -p:IncludeNativeLibrariesForSelfExtract=true -p:DebugType=None -p:DebugSymbols=false
 if ($LASTEXITCODE -ne 0) { throw "dotnet publish exited with code $LASTEXITCODE" }
-
-if (Test-Path -LiteralPath $installRoot) {
-    Remove-Item -LiteralPath $installRoot -Recurse -Force
+if (-not $Install) {
+    Write-Output (Join-Path $publishRoot 'HENTAI Studio.exe')
+    return
 }
+
+# Installation is explicit and does not delete existing app or workspace data.
+$installRoot = Join-Path $env:LOCALAPPDATA 'Programs\HENTAI Studio'
 New-Item -ItemType Directory -Force -Path $installRoot | Out-Null
 Copy-Item -Path (Join-Path $publishRoot '*') -Destination $installRoot -Recurse -Force
-
-if (-not (Test-Path -LiteralPath $executable)) { throw "Installed executable was not created: $executable" }
-
+$backendRoot = Join-Path $installRoot 'backend'
+& $Python -m venv $backendRoot
+if ($LASTEXITCODE -ne 0) { throw 'Failed to create the Studio backend environment.' }
+& (Join-Path $backendRoot 'Scripts\python.exe') -m pip install --upgrade $projectRoot
+if ($LASTEXITCODE -ne 0) { throw 'Failed to install the Studio backend.' }
+$executable = Join-Path $installRoot 'HENTAI Studio.exe'
 $shell = New-Object -ComObject WScript.Shell
-$shortcutLocations = @(
-    (Join-Path ([Environment]::GetFolderPath('Programs')) 'HENTAI Studio.lnk'),
-    (Join-Path ([Environment]::GetFolderPath('Desktop')) 'HENTAI Studio.lnk')
-)
-foreach ($shortcutPath in $shortcutLocations) {
-    $shortcut = $shell.CreateShortcut($shortcutPath)
+foreach ($folder in @([Environment]::GetFolderPath('Programs'), [Environment]::GetFolderPath('Desktop'))) {
+    $shortcut = $shell.CreateShortcut((Join-Path $folder 'HENTAI Studio.lnk'))
     $shortcut.TargetPath = $executable
-    $shortcut.WorkingDirectory = $publishRoot
+    $shortcut.WorkingDirectory = $installRoot
     $shortcut.IconLocation = "$executable,0"
-    $shortcut.Description = 'HENTAI Studio native training control room'
+    $shortcut.Description = 'Standalone training project manager'
     $shortcut.Save()
 }
-
 Write-Output $executable

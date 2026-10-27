@@ -1,6 +1,8 @@
 using System.Diagnostics;
 using System.Drawing;
 using System.Net.Sockets;
+using System.Net.Http;
+using System.Text.Json;
 using Microsoft.Web.WebView2.Core;
 using Microsoft.Web.WebView2.WinForms;
 
@@ -28,7 +30,9 @@ internal static class Program
 
 internal sealed class StudioForm : Form
 {
-    private const string DashboardUrl = "http://127.0.0.1:7860/";
+    private readonly Uri dashboard = new(Environment.GetEnvironmentVariable("STUDIO_URL") ?? "http://127.0.0.1:7860/");
+    private Process? backend;
+    private string backendLog = "";
     private readonly WebView2 browser = new() { Dock = DockStyle.Fill };
     private readonly Panel loadingPanel = new() { Dock = DockStyle.Fill, BackColor = Color.FromArgb(9, 11, 14) };
     private readonly Label statusLabel = new()
@@ -60,8 +64,20 @@ internal sealed class StudioForm : Form
     {
         try
         {
+            if (!dashboard.IsLoopback || dashboard.Scheme != "http" || dashboard.AbsolutePath != "/" || dashboard.Query.Length != 0 || dashboard.UserInfo.Length != 0)
+                throw new InvalidOperationException("STUDIO_URL must be an http:// loopback address.");
             if (!await DashboardReadyAsync())
             {
+                using var portCheck = new TcpClient();
+                try
+                {
+                    using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(1));
+                    await portCheck.ConnectAsync(dashboard.Host.Trim('[', ']'), dashboard.Port, timeout.Token);
+                    ShowError($"Another service is using {dashboard.Authority}. Close it or set STUDIO_URL to a free local port.");
+                    return;
+                }
+                catch (SocketException) { }
+                catch (OperationCanceledException) { }
                 statusLabel.Text = "Starting the local training workspace…";
                 StartDashboard();
                 if (!await WaitForDashboardAsync(TimeSpan.FromSeconds(45)))
@@ -78,7 +94,7 @@ internal sealed class StudioForm : Form
             var environment = await CoreWebView2Environment.CreateAsync(userDataFolder: dataDirectory);
             await browser.EnsureCoreWebView2Async(environment);
             ConfigureBrowser();
-            browser.Source = new Uri(DashboardUrl);
+            browser.Source = dashboard;
         }
         catch (WebView2RuntimeNotFoundException)
         {
@@ -119,11 +135,16 @@ internal sealed class StudioForm : Form
         browser.CoreWebView2.ProcessFailed += (_, _) => browser.Reload();
     }
 
-    private static void StartDashboard()
+    private void StartDashboard()
     {
-        var executable = Environment.GetEnvironmentVariable("STUDIO_EXECUTABLE") ?? "hentai-studio";
+        var bundled = Path.Combine(AppContext.BaseDirectory, "backend", "Scripts", "hentai-studio.exe");
+        var executable = Environment.GetEnvironmentVariable("STUDIO_EXECUTABLE")
+            ?? (File.Exists(bundled) ? bundled : "hentai-studio");
         var workspace = Environment.GetEnvironmentVariable("STUDIO_WORKSPACE")
-            ?? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "HENTAI Studio", "workspace");
+            ?? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".hentai-studio");
+        var logDirectory = Path.Combine(workspace, "logs");
+        Directory.CreateDirectory(logDirectory);
+        backendLog = Path.Combine(logDirectory, "server.log");
         var start = new ProcessStartInfo
         {
             FileName = executable,
@@ -131,37 +152,37 @@ internal sealed class StudioForm : Form
             CreateNoWindow = true,
             WindowStyle = ProcessWindowStyle.Hidden
         };
-        start.ArgumentList.Add("serve");
-        start.ArgumentList.Add("--workspace");
-        start.ArgumentList.Add(workspace);
-        start.ArgumentList.Add("--host");
-        start.ArgumentList.Add("127.0.0.1");
-        start.ArgumentList.Add("--port");
-        start.ArgumentList.Add("7860");
-        Process.Start(start);
+        foreach (var argument in new[] { "serve", "--workspace", workspace, "--host", dashboard.Host.Trim('[', ']'), "--port", dashboard.Port.ToString(), "--log-file", backendLog })
+            start.ArgumentList.Add(argument);
+        backend = new Process { StartInfo = start };
+        backend.Start();
     }
 
-    private static async Task<bool> DashboardReadyAsync()
+    private async Task<bool> DashboardReadyAsync()
     {
         try
         {
-            using var client = new TcpClient();
-            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(1));
-            await client.ConnectAsync("127.0.0.1", 7860, timeout.Token);
-            return client.Connected;
+            using var client = new HttpClient { Timeout = TimeSpan.FromSeconds(1) };
+            using var response = await client.GetAsync(new Uri(dashboard, "/api/health"));
+            if (!response.IsSuccessStatusCode) return false;
+            using var document = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+            return document.RootElement.ValueKind == JsonValueKind.Object
+                && document.RootElement.TryGetProperty("application", out var application)
+                && application.ValueKind == JsonValueKind.String && application.GetString() == "hentai-studio";
         }
-        catch
+        catch (Exception error) when (error is HttpRequestException or TaskCanceledException or JsonException)
         {
             return false;
         }
     }
 
-    private static async Task<bool> WaitForDashboardAsync(TimeSpan timeout)
+    private async Task<bool> WaitForDashboardAsync(TimeSpan timeout)
     {
         var deadline = DateTime.UtcNow + timeout;
         while (DateTime.UtcNow < deadline)
         {
             if (await DashboardReadyAsync()) return true;
+            if (backend?.HasExited == true) return false;
             await Task.Delay(500);
         }
         return false;
@@ -169,7 +190,9 @@ internal sealed class StudioForm : Form
 
     private void ShowStartupFailure() => ShowError(
         "HENTAI Studio could not start its local dashboard.\n\n" +
-        "Install hentai-studio in a Python environment and set STUDIO_EXECUTABLE to its full executable path. Optionally set STUDIO_WORKSPACE to your workspace directory.");
+        "Install the backend or set STUDIO_EXECUTABLE to its full executable path. " +
+        $"Check the startup log: {backendLog}. " +
+        (backend?.HasExited == true ? $"Backend exited with code {backend.ExitCode}." : "Backend did not become ready within 45 seconds."));
 
     private void ShowError(string message)
     {

@@ -1,10 +1,10 @@
-# Studio API 0.4
+# Studio API 0.5
 
 The API manages arbitrary local projects and external jobs. Start with `hentai-studio serve --workspace /absolute/workspace`. Swagger UI: `/api/docs`; OpenAPI: `/api/openapi.json`. JSON fields use snake_case. Collection resources return `{"items": [...]}`. No model-specific routes or workload adapters are required.
 
 | Method | Path | Behavior |
 | --- | --- | --- |
-| GET | `/api/health` | Version, workspace path, free disk bytes |
+| GET | `/api/health` | Application identity, version, workspace path, free disk bytes and health issues |
 | GET / POST | `/api/projects` | List / register (201) |
 | GET / PUT / DELETE | `/api/projects/{id}` | Read / replace / unregister (204) |
 | GET | `/api/jobs?project_id=example` | List history, newest first; omit filter for all projects |
@@ -33,7 +33,7 @@ The API manages arbitrary local projects and external jobs. Start with `hentai-s
 }
 ```
 
-The root must exist and be absolute on the Studio host. IDs and command names use letters, numbers, underscores and hyphens (1–64 characters, first alphanumeric). Commands are nonempty argument arrays; unknown fields are rejected. Environment values are strings. `metrics_file` must be a relative `.jsonl` or `.csv` path inside the job output. PUT replaces the definition and requires the body ID to equal the URL ID. Active projects cannot be edited or unregistered.
+The root must exist and be absolute on the Studio host. IDs and command names use letters, numbers, underscores and hyphens (1–64 characters, first alphanumeric). Commands are nonempty argument arrays; unknown fields are rejected. Environment values are strings. `metrics_file` must be a relative `.jsonl` or `.csv` path inside the job output. PUT replaces the definition and requires the body ID to equal the URL ID. Active projects and projects with verified surviving processes cannot be edited or unregistered. IDs are unique ignoring case. Empty argument strings are supported when the executable itself is nonempty.
 
 Studio executes commands with the project root as cwd, inherits its own process environment, and overlays configured environment values. It does not activate environments automatically: use the project's interpreter or executable. `{project_root}` and `{output_dir}` substitutions work in arguments and environment values. See the README for supplied `STUDIO_*` variables. Definitions, including configured environment values, are stored in the local workspace; use it as private application data.
 
@@ -47,7 +47,7 @@ Studio executes commands with the project root as cwd, inherits its own process 
 
 The result includes the job ID, immutable project snapshot, command, timestamps, state, exit code, supervisor identity and optional error. A resume source must be a finished job of the same project. Studio supplies its output directory as `STUDIO_RESUME_DIR`; it does not infer or load a checkpoint. Select the appropriate command for the trainer.
 
-States: `starting`, `running`, `stopping`, `succeeded`, `failed`, `stopped`, `interrupted`. A successful exit is `succeeded`; nonzero exit or failure to launch is `failed`. Stop is asynchronous and uses a durable request file. A second start for an active project returns 409. Different projects may run at once. A missing supervisor is marked interrupted after a short startup grace period, without signaling any PID.
+States: `starting`, `running`, `stopping`, `succeeded`, `failed`, `stopped`, `interrupted`. A successful exit is `succeeded`; nonzero exit or failure to launch is `failed`. Stop is asynchronous and uses a durable request file. A second start for an active project returns 409. Different projects may run at once. A missing supervisor is marked interrupted after a short startup grace period. Job responses include `has_live_processes`. Verified surviving trainer/descendant processes block new launches and can be stopped through the same stop endpoint; PID creation times are checked before signals. Historical jobs without recorded process identities require manual inspection.
 
 ## Output observation
 
@@ -63,4 +63,4 @@ Artifacts return `items` with relative `path` and byte `size`, plus `truncated`.
 {"error": {"code": "project_busy", "message": "This project already has an active job.", "details": []}}
 ```
 
-404 identifies missing resources, 409 lifecycle conflicts, 422 invalid fields or command selection, 503 supervisor launch failures. Unexpected failures return a generic 500 and are logged on the server. JSON bodies are capped at 128 KiB, including streamed requests, with a 15-second receive timeout. Responses disable caching and content sniffing. The local service has no authentication; keep it bound to loopback.
+404 identifies missing resources, 409 lifecycle conflicts, 422 invalid fields or command selection, 503 supervisor launch failures. Unexpected failures return a generic 500 and are logged on the server. JSON bodies are capped at 128 KiB, including streamed requests, with a 15-second receive timeout. Responses disable caching and content sniffing. The local service has no account authentication; keep it bound to loopback. Foreign Origin headers and unexpected Host headers return a structured 403. Health includes `application: "hentai-studio"` for desktop discovery and `status: "degraded"` plus `issues` when workspace records need repair. Valid history stays readable; starts and registration changes return 409 until damaged records are repaired.

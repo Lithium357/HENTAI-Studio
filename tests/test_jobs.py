@@ -3,12 +3,14 @@ import os
 import subprocess
 import sys
 import time
+
 import psutil
 import pytest
-from hentai_studio.api.errors import ApiError
-from hentai_studio.api.schemas import JobRequest, Project
+
+from hentai_studio.errors import StudioError
 from hentai_studio.jobs.files import ACTIVE, atomic_json
 from hentai_studio.jobs.workspace import Workspace
+from hentai_studio.models import JobRequest, Project
 
 
 @pytest.fixture
@@ -94,12 +96,12 @@ def test_active_project_cannot_duplicate_edit_or_unregister(workspace, tmp_path)
         lambda: workspace.save_project(project),
         lambda: workspace.delete_project(project.id),
     ):
-        with pytest.raises(ApiError) as error:
+        with pytest.raises(StudioError) as error:
             action()
         assert error.value.status == 409
     workspace.stop_job(job.id)
     assert wait_job(workspace, job.id).state == "stopped"
-    with pytest.raises(ApiError):
+    with pytest.raises(StudioError):
         workspace.stop_job(job.id)
 
 
@@ -175,7 +177,7 @@ def test_artifact_confinement_metrics_and_partial_rows(workspace, tmp_path):
         {"step": 1.0, "loss": 3.0},
         {"loss": 2.0},
     ]
-    with pytest.raises(ApiError):
+    with pytest.raises(StudioError):
         workspace.output_file(job.id, "../job.json")
     secret = tmp_path / "secret.txt"
     secret.write_text("private")
@@ -184,7 +186,7 @@ def test_artifact_confinement_metrics_and_partial_rows(workspace, tmp_path):
     except OSError:
         return  # Windows without developer-mode symlink permission.
     assert "escape.txt" not in [item.path for item in workspace.artifacts(job.id).items]
-    with pytest.raises(ApiError):
+    with pytest.raises(StudioError):
         workspace.output_file(job.id, "escape.txt")
 
 
@@ -204,13 +206,13 @@ def test_csv_metrics_bounded_log_paging_and_project_snapshot(workspace, tmp_path
 
 def test_unknown_command_and_cross_project_resume(workspace, tmp_path):
     register(workspace, tmp_path, "print('ok')")
-    with pytest.raises(ApiError) as error:
+    with pytest.raises(StudioError) as error:
         workspace.start_job("example", JobRequest(command="unknown"))
     assert error.value.status == 422
     first = workspace.start_job("example", JobRequest(command="train"))
     wait_job(workspace, first.id)
     register(workspace, tmp_path, "print('ok')", id="other")
-    with pytest.raises(ApiError) as error:
+    with pytest.raises(StudioError) as error:
         workspace.start_job("other", JobRequest(command="resume", resume_from=first.id))
     assert error.value.status == 409
 
@@ -260,3 +262,154 @@ def test_independent_projects_run_concurrently(workspace, tmp_path):
     workspace.stop_job(first.id)
     assert wait_job(workspace, first.id).state == "stopped"
     assert workspace.get_job(second.id).state == "running"
+
+
+def test_dead_supervisor_can_stop_surviving_trainer_and_blocks_duplicate_start(
+    workspace, tmp_path
+):
+    register(
+        workspace, tmp_path, "import time; print('running', flush=True); time.sleep(60)"
+    )
+    job = workspace.start_job("example", JobRequest(command="train"))
+    running = wait_job(workspace, job.id, {"running"})
+    trainer = psutil.Process(running.trainer_pid)
+    supervisor = psutil.Process(running.worker_pid)
+    supervisor.kill()
+    supervisor.wait(timeout=10)
+    path = workspace.jobs / job.id / "job.json"
+    os.utime(path, (time.time() - 10, time.time() - 10))
+    interrupted = workspace.get_job(job.id)
+    assert interrupted.state == "interrupted" and interrupted.has_live_processes
+    with pytest.raises(StudioError) as error:
+        workspace.start_job("example", JobRequest(command="train"))
+    assert error.value.code == "project_busy"
+    assert workspace.stop_job(job.id).state == "stopped"
+    assert not trainer.is_running() or trainer.status() == psutil.STATUS_ZOMBIE
+
+
+def test_corrupt_history_is_visible_and_fails_closed_without_hiding_valid_jobs(
+    workspace, tmp_path
+):
+    register(workspace, tmp_path, "print('ok')")
+    job = workspace.start_job("example", JobRequest(command="train"))
+    wait_job(workspace, job.id)
+    bad = workspace.jobs / "broken"
+    bad.mkdir()
+    (bad / "job.json").write_text("{")
+    assert len(workspace.issues()) == 1
+    assert workspace.list_jobs()[0].id == job.id
+    with pytest.raises(StudioError) as error:
+        workspace.start_job("example", JobRequest(command="train"))
+    assert error.value.code == "workspace_needs_repair"
+    assert workspace.logs(job.id).text.strip() == "ok"
+
+
+def test_corrupt_registration_does_not_break_other_projects(workspace, tmp_path):
+    register(workspace, tmp_path, "print('ok')")
+    (workspace.projects / "broken.json").write_text('{"id":"wrong"}')
+    assert [project.id for project in workspace.list_projects()] == ["example"]
+    assert workspace.issues()[0].resource == "projects/broken.json"
+
+
+def test_project_ids_cannot_collide_on_windows(workspace, tmp_path):
+    project = register(workspace, tmp_path, "print('ok')", id="MixedCase")
+    with pytest.raises(StudioError) as error:
+        workspace.save_project(
+            project.model_copy(update={"id": "mixedcase"}), create=True
+        )
+    assert error.value.code == "project_exists"
+    saved = workspace.save_project(
+        project.model_copy(update={"id": "mixedcase", "name": "Updated"})
+    )
+    assert saved.id == "MixedCase"
+    assert workspace.get_project("MIXEDCASE").name == "Updated"
+    assert not workspace.issues()
+
+
+def test_empty_string_arguments_are_passed_literally(workspace, tmp_path):
+    project = register(workspace, tmp_path, "import sys; print(repr(sys.argv[1]))")
+    project.commands["train"].append("")
+    workspace.save_project(project)
+    job = workspace.start_job("example", JobRequest(command="train"))
+    assert wait_job(workspace, job.id).state == "succeeded"
+    assert workspace.logs(job.id).text.strip() == "''"
+
+
+def test_csv_bom_and_oversized_field_do_not_break_job_observation(workspace, tmp_path):
+    register(workspace, tmp_path, "print('ok')", metrics_file="progress.csv")
+    job = workspace.start_job("example", JobRequest(command="train"))
+    wait_job(workspace, job.id)
+    path = workspace.jobs / job.id / "output/progress.csv"
+    path.write_text("step,loss\n1,2\n2,1\n", encoding="utf-8-sig")
+    assert workspace.metrics(job.id).items[-1] == {"step": 2.0, "loss": 1.0}
+    path.write_text(
+        "step,loss,note\n1,2," + '"' + "x" * 200000 + '"\n', encoding="utf-8"
+    )
+    assert workspace.metrics(job.id).items == []
+    assert workspace.get_job(job.id).state == "succeeded"
+
+
+def test_lease_double_acquire_cannot_release_original_lock(workspace):
+    with pytest.raises(RuntimeError, match="already acquired"):
+        workspace.acquire()
+    other = Workspace(workspace.root)
+    with pytest.raises(RuntimeError, match="already served"):
+        other.acquire()
+    workspace.close()
+    other.acquire()
+    other.close()
+
+
+def test_windows_reader_lock_is_retried_without_reporting_corruption(
+    tmp_path, monkeypatch
+):
+    from hentai_studio.jobs.files import read_json
+
+    path = tmp_path / "job.json"
+    path.write_text('{"state":"running"}')
+    original = type(path).read_text
+    calls = []
+
+    def read(self, *args, **kwargs):
+        calls.append(self)
+        if len(calls) == 1:
+            raise PermissionError("transient scanner lock")
+        return original(self, *args, **kwargs)
+
+    monkeypatch.setattr(type(path), "read_text", read)
+    assert read_json(path) == {"state": "running"}
+    assert len(calls) == 2
+
+
+def test_slow_supervisor_startup_does_not_admit_duplicate_job(
+    workspace, tmp_path, monkeypatch
+):
+    import hentai_studio.jobs.workspace as module
+
+    original = subprocess.Popen
+    processes = []
+
+    def slow_worker(*args, **kwargs):
+        process = original(
+            [sys.executable, "-c", "import time; time.sleep(60)"], **kwargs
+        )
+        processes.append(process)
+        return process
+
+    register(workspace, tmp_path, "print('never launched')")
+    monkeypatch.setattr(module.subprocess, "Popen", slow_worker)
+    try:
+        job = workspace.start_job("example", JobRequest(command="train"))
+        path = workspace.jobs / job.id / "job.json"
+        os.utime(path, (time.time() - 20, time.time() - 20))
+        assert workspace.get_job(job.id).state == "starting"
+        with pytest.raises(StudioError) as error:
+            workspace.start_job("example", JobRequest(command="train"))
+        assert error.value.code == "project_busy"
+    finally:
+        for process in processes:
+            process.terminate()
+            process.wait(timeout=10)
+        if processes:
+            payload = json.loads(path.read_text(encoding="utf-8")) | {"state": "failed"}
+            atomic_json(path, payload)

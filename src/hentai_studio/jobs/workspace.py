@@ -1,9 +1,5 @@
 from __future__ import annotations
 
-import csv
-import io
-import json
-import math
 import os
 import subprocess
 import sys
@@ -13,18 +9,20 @@ import uuid
 from pathlib import Path
 
 import psutil
+from pydantic import ValidationError
 
-from ..api.errors import ApiError
-from ..api.schemas import (
-    Artifact,
-    Artifacts,
+from ..errors import StudioError
+from ..models import (
     Job,
     JobRequest,
-    LogPage,
-    Metrics,
+    ProcessIdentity,
     Project,
+    WorkspaceIssue,
 )
-from .files import ACTIVE, atomic_json, confined, now, read_json
+from .files import ACTIVE, atomic_json, now, read_json
+from .lease import WorkspaceLease
+from .outputs import OutputReader
+from .processes import terminate_tree, verified_process
 
 
 class Workspace:
@@ -37,42 +35,28 @@ class Workspace:
         self.projects.mkdir(parents=True, exist_ok=True)
         self.jobs.mkdir(exist_ok=True)
         self._lock = threading.RLock()
-        self._lease = None
+        self._lease = WorkspaceLease(self.root)
         self._workers: list[subprocess.Popen] = []
+        self.outputs = OutputReader(self.job_directory, self.get_job)
+
+    def logs(self, *args, **kwargs):
+        return self.outputs.logs(*args, **kwargs)
+
+    def metrics(self, job_id):
+        return self.outputs.metrics(job_id)
+
+    def artifacts(self, job_id):
+        return self.outputs.artifacts(job_id)
+
+    def output_file(self, job_id, path):
+        return self.outputs.output_file(job_id, path)
 
     def acquire(self):
-        self._lease = (self.root / "workspace.lock").open("a+b")
-        self._lease.seek(0)
-        self._lease.write(b"0")
-        self._lease.flush()
-        self._lease.seek(0)
-        try:
-            if os.name == "nt":
-                import msvcrt
-
-                msvcrt.locking(self._lease.fileno(), msvcrt.LK_NBLCK, 1)
-            else:
-                import fcntl
-
-                fcntl.flock(self._lease.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
-        except OSError:
-            self._lease.close()
-            self._lease = None
-            raise RuntimeError(
-                "This workspace is already served by another Studio process."
-            ) from None
+        self._lease.acquire()
 
     def close(self):
-        # Workers deliberately survive a dashboard restart.
         self._reap()
-        if self._lease:
-            if os.name == "nt":
-                import msvcrt
-
-                self._lease.seek(0)
-                msvcrt.locking(self._lease.fileno(), msvcrt.LK_UNLCK, 1)
-            self._lease.close()
-            self._lease = None
+        self._lease.close()
 
     def _reap(self):
         self._workers = [worker for worker in self._workers if worker.poll() is None]
@@ -82,42 +66,120 @@ class Workspace:
         import re
 
         if not re.fullmatch(r"[a-zA-Z0-9][a-zA-Z0-9_-]{0,63}", value):
-            raise ApiError(404, "not_found", "Unknown identifier.")
+            raise StudioError(404, "not_found", "Unknown identifier.")
         return value
 
+    def _load(self, path, model):
+        try:
+            value = model.model_validate(read_json(path))
+            identifier = path.stem if model is Project else path.parent.name
+            if value.id != identifier:
+                raise ValueError("Stored identity does not match its file location.")
+            return value
+        except (OSError, ValueError, ValidationError) as error:
+            raise StudioError(
+                409,
+                "invalid_workspace_record",
+                f"Cannot read {path.relative_to(self.root)}. Restore or repair this workspace record.",
+            ) from error
+
+    def issues(self):
+        issues = []
+        seen = set()
+        for path in sorted(self.projects.glob("*.json")):
+            try:
+                self._load(path, Project)
+                if path.stem.casefold() in seen:
+                    raise StudioError(
+                        409,
+                        "duplicate_project",
+                        "Project IDs must be distinct ignoring case.",
+                    )
+                seen.add(path.stem.casefold())
+            except StudioError as error:
+                issues.append(
+                    WorkspaceIssue(
+                        resource=path.relative_to(self.root).as_posix(),
+                        message=error.message,
+                    )
+                )
+        for directory in sorted(self.jobs.iterdir()):
+            if not directory.is_dir():
+                continue
+            try:
+                job = self._load(directory / "job.json", Job)
+                self._supervisor_identity(directory, job)
+                self._owned_processes(directory)
+            except StudioError as error:
+                issues.append(
+                    WorkspaceIssue(
+                        resource=directory.relative_to(self.root).as_posix(),
+                        message=error.message,
+                    )
+                )
+        return issues
+
+    def _require_healthy_history(self):
+        if self.issues():
+            raise StudioError(
+                409,
+                "workspace_needs_repair",
+                "Repair the workspace records reported by /api/health before starting jobs or changing registrations.",
+            )
+
     def list_projects(self):
-        return [
-            Project.model_validate(read_json(path))
-            for path in sorted(self.projects.glob("*.json"))
+        result = []
+        for path in sorted(self.projects.glob("*.json")):
+            try:
+                result.append(self._load(path, Project))
+            except StudioError:
+                continue
+        return result
+
+    def _project_file(self, project_id):
+        self._identifier(project_id)
+        matches = [
+            path
+            for path in self.projects.glob("*.json")
+            if path.stem.casefold() == project_id.casefold()
         ]
+        if len(matches) > 1:
+            raise StudioError(
+                409,
+                "duplicate_project",
+                "Ambiguous project ID; repair duplicate registration files.",
+            )
+        return matches[0] if matches else self.projects / (project_id + ".json")
 
     def get_project(self, project_id):
-        path = self.projects / (self._identifier(project_id) + ".json")
+        path = self._project_file(project_id)
         if not path.is_file():
-            raise ApiError(404, "project_not_found", "Project does not exist.")
-        return Project.model_validate(read_json(path))
+            raise StudioError(404, "project_not_found", "Project does not exist.")
+        return self._load(path, Project)
 
     def save_project(self, project: Project, *, create=False):
         with self._lock:
-            path = self.projects / (project.id + ".json")
+            self._require_healthy_history()
+            path = self._project_file(project.id)
             if create and path.exists():
-                raise ApiError(
+                raise StudioError(
                     409, "project_exists", "A project with this ID already exists."
                 )
             if not create:
-                self.get_project(project.id)
+                existing = self.get_project(project.id)
+                project = project.model_copy(update={"id": existing.id})
             if any(
-                job.project_id == project.id and job.state in ACTIVE
+                job.project_id == project.id and self._busy(job)
                 for job in self.list_jobs()
             ):
-                raise ApiError(
+                raise StudioError(
                     409,
                     "project_busy",
                     "Stop the active job before changing this project.",
                 )
             root = Path(project.root).expanduser()
             if not root.is_absolute() or not root.is_dir():
-                raise ApiError(
+                raise StudioError(
                     422,
                     "invalid_project_root",
                     "Project root must be an existing absolute directory on the Studio host.",
@@ -128,83 +190,147 @@ class Workspace:
 
     def delete_project(self, project_id):
         with self._lock:
-            self.get_project(project_id)
+            self._require_healthy_history()
+            project = self.get_project(project_id)
             if any(
-                job.project_id == project_id and job.state in ACTIVE
+                job.project_id == project.id and self._busy(job)
                 for job in self.list_jobs()
             ):
-                raise ApiError(
+                raise StudioError(
                     409,
                     "project_busy",
                     "Stop the active job before removing this project.",
                 )
-            (self.projects / (project_id + ".json")).unlink()
+            self._project_file(project_id).unlink()
 
     def job_directory(self, job_id):
         path = self.jobs / self._identifier(job_id)
-        if not (path / "job.json").is_file():
-            raise ApiError(404, "job_not_found", "Job does not exist.")
+        if (
+            not path.resolve().is_relative_to(self.jobs.resolve())
+            or not (path / "job.json").is_file()
+        ):
+            raise StudioError(404, "job_not_found", "Job does not exist.")
         return path
+
+    @staticmethod
+    def _busy(job):
+        return job.state in ACTIVE or job.has_live_processes
+
+    def _owned_processes(self, directory, job=None):
+        path = directory / "processes.json"
+        identities = []
+        if path.exists():
+            try:
+                from ..models import ProcessIdentity
+
+                identities = [
+                    ProcessIdentity.model_validate(item) for item in read_json(path)
+                ]
+            except (OSError, ValueError, TypeError, ValidationError) as error:
+                raise StudioError(
+                    409,
+                    "invalid_process_record",
+                    "Cannot read job process identities; repair processes.json before restarting.",
+                ) from error
+        elif job and job.trainer_pid and job.trainer_created:
+            from ..models import ProcessIdentity
+
+            identities = [
+                ProcessIdentity(pid=job.trainer_pid, created=job.trainer_created)
+            ]
+        processes = []
+        for identity in identities:
+            try:
+                process = verified_process(identity.pid, identity.created)
+                if process:
+                    processes.append(process)
+            except psutil.AccessDenied as error:
+                raise StudioError(
+                    409,
+                    "process_access_denied",
+                    "Cannot verify a job process; inspect its permissions before restarting.",
+                ) from error
+        return processes
+
+    def _supervisor_identity(self, directory, job):
+        if job.worker_pid and job.worker_created:
+            return ProcessIdentity(pid=job.worker_pid, created=job.worker_created)
+        path = directory / "supervisor.json"
+        if not path.exists():
+            return None
+        try:
+            return ProcessIdentity.model_validate(read_json(path))
+        except (OSError, ValueError, ValidationError) as error:
+            raise StudioError(
+                409,
+                "invalid_supervisor_record",
+                "Cannot read supervisor identity; repair supervisor.json before restarting.",
+            ) from error
 
     def get_job(self, job_id):
         with self._lock:
             directory = self.job_directory(job_id)
-            job = Job.model_validate(read_json(directory / "job.json"))
+            job = self._load(directory / "job.json", Job)
+            live = bool(self._owned_processes(directory, job))
             if job.state in ACTIVE:
-                alive = False
-                if job.worker_pid and job.worker_created:
-                    try:
-                        process = psutil.Process(job.worker_pid)
-                        alive = (
-                            process.is_running()
-                            and abs(process.create_time() - job.worker_created) < 0.01
-                            and process.status() != psutil.STATUS_ZOMBIE
-                        )
-                    except psutil.NoSuchProcess:
-                        pass
-                    except psutil.AccessDenied:
-                        alive = True  # Do not misclassify a process we cannot inspect.
-                # The initial file is durable before the worker starts and claims it.
+                try:
+                    identity = self._supervisor_identity(directory, job)
+                    worker = (
+                        verified_process(identity.pid, identity.created)
+                        if identity
+                        else None
+                    )
+                except psutil.AccessDenied:
+                    worker = True  # Lack of permission is not evidence of death.
                 if (
-                    not alive
+                    not worker
                     and time.time() - (directory / "job.json").stat().st_mtime > 5
                 ):
                     job = job.model_copy(
                         update={
                             "state": "interrupted",
                             "finished_at": now(),
-                            "error": "Job supervisor exited unexpectedly; inspect console.log and project processes before restarting.",
+                            "error": "Job supervisor exited unexpectedly. Stop any surviving job processes before restarting.",
                         }
                     )
                     atomic_json(directory / "job.json", job.model_dump())
-            return job
+            return job.model_copy(update={"has_live_processes": live})
 
     def list_jobs(self, project_id=None):
-        self._reap()
-        jobs = [self.get_job(path.parent.name) for path in self.jobs.glob("*/job.json")]
-        return sorted(
-            (job for job in jobs if project_id is None or job.project_id == project_id),
-            key=lambda job: job.created_at,
-            reverse=True,
-        )
+        with self._lock:
+            self._reap()
+            jobs = []
+            for path in self.jobs.glob("*/job.json"):
+                try:
+                    job = self.get_job(path.parent.name)
+                    if (
+                        project_id is None
+                        or job.project_id.casefold() == project_id.casefold()
+                    ):
+                        jobs.append(job)
+                except StudioError:
+                    continue
+            return sorted(jobs, key=lambda job: job.created_at, reverse=True)
 
     def start_job(self, project_id, request: JobRequest):
         with self._lock:
+            self._require_healthy_history()
             project = self.get_project(project_id)
+            project_id = project.id
             if request.command not in project.commands:
-                raise ApiError(
+                raise StudioError(
                     422,
                     "unknown_command",
                     "This project has no command with that name.",
                 )
-            if any(job.state in ACTIVE for job in self.list_jobs(project_id)):
-                raise ApiError(
+            if any(self._busy(job) for job in self.list_jobs(project_id)):
+                raise StudioError(
                     409, "project_busy", "This project already has an active job."
                 )
             if request.resume_from:
                 previous = self.get_job(request.resume_from)
-                if previous.project_id != project_id or previous.state in ACTIVE:
-                    raise ApiError(
+                if previous.project_id != project_id or self._busy(previous):
+                    raise StudioError(
                         409,
                         "invalid_resume",
                         "Resume source must be a finished job from this project.",
@@ -241,7 +367,12 @@ class Workspace:
                         else 0,
                     )
                 self._workers.append(worker)
-            except OSError as error:
+                identity = psutil.Process(worker.pid)
+                atomic_json(
+                    directory / "supervisor.json",
+                    {"pid": identity.pid, "created": identity.create_time()},
+                )
+            except (OSError, psutil.NoSuchProcess) as error:
                 job = job.model_copy(
                     update={
                         "state": "failed",
@@ -250,119 +381,42 @@ class Workspace:
                     }
                 )
                 atomic_json(directory / "job.json", job.model_dump())
-                raise ApiError(503, "launch_failed", str(error)) from error
+                raise StudioError(503, "launch_failed", str(error)) from error
             return job
 
     def stop_job(self, job_id):
         with self._lock:
             job = self.get_job(job_id)
-            if job.state not in ACTIVE:
-                raise ApiError(409, "job_finished", "This job has already finished.")
-            (self.job_directory(job_id) / "stop").touch()
-            return job
-
-    def logs(self, job_id, offset=0, limit=65536, tail=False):
-        path = self.job_directory(job_id) / "console.log"
-        if not path.exists():
-            return LogPage(text="", next_offset=0, size=0)
-        with path.open("rb") as stream:
-            stream.seek(0, 2)
-            size = stream.tell()
-            stream.seek(max(0, size - limit) if tail else min(offset, size))
-            content = stream.read(limit)
-            next_offset = stream.tell()
-        return LogPage(
-            text=content.decode("utf-8", errors="replace"),
-            next_offset=next_offset,
-            size=size,
-        )
-
-    def output_file(self, job_id, path):
-        try:
-            target = confined(self.job_directory(job_id) / "output", path)
-        except (ValueError, OSError):
-            raise ApiError(
-                404,
-                "artifact_not_found",
-                "File does not exist inside this job's output directory.",
-            ) from None
-        if not target.is_file():
-            raise ApiError(404, "artifact_not_found", "Artifact does not exist.")
-        return target
-
-    def metrics(self, job_id):
-        job = self.get_job(job_id)
-        try:
-            path = self.output_file(job_id, job.project.metrics_file)
-        except ApiError:
-            return Metrics(items=[], truncated=False)
-        limit = 1024 * 1024
-        with path.open("rb") as stream:
-            header = stream.readline(65536) if path.suffix == ".csv" else b""
-            stream.seek(0, 2)
-            size = stream.tell()
-            truncated = size > limit
-            stream.seek(max(len(header), size - limit) if truncated else len(header))
-            if truncated:
-                stream.readline(limit)  # Drop partial first row.
-            data = stream.read(limit)
-        # Ignore a row still being written by the trainer.
-        if not data.endswith(b"\n"):
-            data = data.rsplit(b"\n", 1)[0] + b"\n" if b"\n" in data else b""
-        text = data.decode("utf-8", errors="replace")
-        rows = (
-            csv.DictReader(io.StringIO(header.decode("utf-8") + text))
-            if header
-            else text.splitlines()
-        )
-        items = []
-        for row in rows:
-            try:
-                record = json.loads(row) if isinstance(row, str) else row
-                if not isinstance(record, dict):
-                    continue
-                numeric = {}
-                for key, value in record.items():
-                    try:
-                        number = float(value)
-                    except (ValueError, TypeError):
-                        continue
-                    if math.isfinite(number):
-                        numeric[str(key)] = number
-                if numeric:
-                    items.append(numeric)
-            except (ValueError, TypeError):
-                continue
-        return Metrics(items=items[-1000:], truncated=truncated or len(items) > 1000)
-
-    def artifacts(self, job_id):
-        root = self.job_directory(job_id) / "output"
-        items = []
-        visited = 0
-        # Do not traverse directory links or return file links outside the output root.
-        for directory, directories, files in os.walk(root, followlinks=False):
-            visited += 1
-            if visited > 2000:
-                return Artifacts(items=items, truncated=True)
-            directories[:] = sorted(
-                name
-                for name in directories
-                if not (Path(directory) / name).is_symlink()
-                and (Path(directory) / name).resolve().is_relative_to(root.resolve())
-            )
-            for name in sorted(files):
-                visited += 1
-                if visited > 2000:
-                    return Artifacts(items=items, truncated=True)
-                path = Path(directory) / name
-                try:
-                    target = confined(root, path.relative_to(root))
-                    items.append(
-                        Artifact(
-                            path=path.relative_to(root).as_posix(),
-                            size=target.stat().st_size,
-                        )
+            directory = self.job_directory(job_id)
+            if job.state not in ACTIVE and job.has_live_processes:
+                processes = self._owned_processes(directory, job)
+                if not processes:
+                    raise StudioError(
+                        409, "job_finished", "No verified job process remains to stop."
                     )
-                except (ValueError, OSError):
-                    continue
-        return Artifacts(items=items, truncated=False)
+                for process in processes:
+                    try:
+                        terminate_tree(process)
+                    except psutil.NoSuchProcess:
+                        pass
+                if self._owned_processes(directory, job):
+                    raise StudioError(
+                        409,
+                        "stop_incomplete",
+                        "Some job processes could not be stopped.",
+                    )
+                job = job.model_copy(
+                    update={
+                        "state": "stopped",
+                        "has_live_processes": False,
+                        "finished_at": now(),
+                        "error": None,
+                    }
+                )
+                atomic_json(directory / "job.json", job.model_dump())
+                return job
+            if job.state not in ACTIVE:
+                raise StudioError(409, "job_finished", "This job has already finished.")
+            (directory / "stop").touch()
+            # The worker remains the sole writer while alive. Return current durable state.
+            return job

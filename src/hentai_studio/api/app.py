@@ -8,23 +8,23 @@ from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
 from .. import __version__
+from ..errors import StudioError
 from ..jobs.workspace import Workspace
-from .errors import ApiError, register_error_handlers
-from .middleware import RequestLimits, ResponseHeaders
-from .schemas import (
+from ..models import (
     Artifacts,
     Collection,
-    ErrorResponse,
-    Health,
     Job,
     JobRequest,
     LogPage,
     Metrics,
     Project,
 )
+from .errors import register_error_handlers
+from .middleware import LocalRequests, RequestLimits, ResponseHeaders
+from .schemas import ErrorResponse, Health
 
 
-def create_app(workspace: Path | str) -> FastAPI:
+def create_app(workspace: Path | str, *, host: str = "127.0.0.1") -> FastAPI:
     service = Workspace(Path(workspace))
 
     @asynccontextmanager
@@ -45,17 +45,21 @@ def create_app(workspace: Path | str) -> FastAPI:
         lifespan=lifespan,
         responses={
             code: {"model": ErrorResponse}
-            for code in (400, 404, 405, 408, 409, 413, 422, 500, 503)
+            for code in (400, 403, 404, 405, 408, 409, 413, 422, 500, 503)
         },
     )
     app.state.workspace = service
     register_error_handlers(app)
     app.add_middleware(RequestLimits)
+    app.add_middleware(LocalRequests, hosts=["localhost", "127.0.0.1", "::1", host])
     app.add_middleware(ResponseHeaders)
 
     @app.get("/api/health", response_model=Health, tags=["system"])
     def health():
+        issues = service.issues()
         return Health(
+            status="degraded" if issues else "ok",
+            issues=issues,
             version=__version__,
             workspace=str(service.root),
             free_bytes=shutil.disk_usage(service.root).free,
@@ -78,7 +82,7 @@ def create_app(workspace: Path | str) -> FastAPI:
     @app.put("/api/projects/{project_id}", response_model=Project, tags=["projects"])
     def update_project(project_id: str, project: Project):
         if project.id != project_id:
-            raise ApiError(
+            raise StudioError(
                 422, "project_id_mismatch", "The body ID must match the URL."
             )
         return service.save_project(project)

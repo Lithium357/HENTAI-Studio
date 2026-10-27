@@ -1,34 +1,50 @@
 # Architecture
 
-Studio controls external commands and observes standard files. No trainer or model framework participates in application startup. HENTAI's `scratchtag` package is neither a dependency nor an imported module. HENTAI itself has no Studio dependency.
+Studio runs external commands and observes standard files. Domain/application code does not import FastAPI, any training framework, HENTAI or Lucy. Model and dataset logic belong to each external project.
 
-- `cli.py` starts `serve` with a workspace, host, and port. Optional LLM utility commands import their implementations only when invoked.
-- `studio.py` composes the application and Uvicorn transport.
-- `api/app.py` declares typed project and job routes and serves the dashboard. `schemas.py` owns validation and the OpenAPI contract. `errors.py` and `middleware.py` own errors and transport limits.
-- `jobs/workspace.py` owns registration persistence, job admission, history, output reads, and the workspace lease. It never imports training code.
-- `jobs/worker.py` is a separate supervisor process per job. It launches argument arrays without a shell, captures stdout/stderr, observes stop requests, owns process-tree termination, and writes lifecycle state atomically. It survives dashboard shutdown.
-- `jobs/files.py` owns atomic JSON replacement, timestamps and file confinement.
-- `dashboard_static/` contains a small ES-module UI, typed-resource client, generic metric geometry and serialized polling. Dynamic metadata is written as text, and refreshes discard responses from obsolete selections.
-- `workloads/llm/` and its supporting core utilities are optional standalone command line tools. They are not dashboard adapters or runtime requirements.
+| Component | Responsibility |
+| --- | --- |
+| `models.py`, `errors.py` | Validated project/job/output types and application errors |
+| `cli.py`, `studio.py` | Workspace selection and application composition |
+| `api/` | FastAPI routes, error translation, request limits, origin/Host checks and Uvicorn logging |
+| `jobs/workspace.py` | Project registry, admission checks, history, reconciliation and orphan recovery |
+| `jobs/lease.py` | Exclusive dashboard ownership of one workspace |
+| `jobs/worker.py` | Durable per-job external-command supervisor |
+| `jobs/processes.py` | PID/creation-time verification and owned-tree termination |
+| `jobs/outputs.py` | Bounded logs, JSONL/CSV metrics and confined artifacts |
+| `jobs/files.py` | Atomic persistence, Windows sharing retries, timestamps and confinement |
+| `dashboard_static/state.js` | Pure selection, lifecycle and control eligibility state |
+| `dashboard_static/views.js` | Safe text rendering and independent output panels |
+| `dashboard_static/editor.js` | Registration form and validation feedback |
+| `dashboard_static/app.js` | Polling, cancellation and mutation coordination |
+| `dashboard_static/api.js`, `metrics.js`, `poller.js` | Transport, generic geometry and serialized refresh scheduling |
 
-## Workspace layout
+## Workspace
 
 ```text
 workspace/
-  workspace.lock          exclusive dashboard process lease
-  projects/{id}.json      project definitions
+  workspace.lock
+  projects/{id}.json
   jobs/{uuid}/
-    job.json              immutable configuration + current lifecycle state
-    console.log           trainer stdout/stderr
-    supervisor.log        supervisor diagnostics
-    stop                  durable stop request, when requested
-    output/               trainer-owned outputs, metrics, checkpoints
+    job.json
+    processes.json
+    supervisor.json
+    console.log
+    supervisor.log
+    stop
+    output/
 ```
 
-Project files live elsewhere and are not rewritten by registration. Each job captures a complete project definition so history survives edits or unregistration. The worker is the only normal writer of job lifecycle state. The server may mark a vanished worker interrupted, checking PID and process creation time rather than PID alone. One dashboard process may serve a workspace; independent jobs continue across dashboard restarts. The server's in-process lock serializes starts and edits, preventing duplicate jobs for a project.
+A job snapshots its project definition, command and resume source. The worker owns normal lifecycle writes and records trainer/descendant PID creation times in processes.json. The parent records supervisor identity in supervisor.json, and the worker waits for that launch commitment before starting the trainer. This prevents a slow Python startup from admitting a duplicate job. Output files remain project-owned. The server serializes registration changes and starts with an in-process lock, while the workspace lease excludes a second server process.
 
-Stop terminates only the selected supervisor's child tree, waits up to five seconds, then kills survivors. Observed descendants are cleaned up if the trainer exits first. Studio does not adopt external jobs, promise a graceful checkpoint, or manage remote schedulers. A supervisor killed externally may leave trainer processes behind; inspect them before restarting an interrupted job.
+The server checks supervisor identity when reading active jobs. After the startup grace period, a missing supervisor marks the job interrupted. Live recorded trainer processes block duplicate starts, edits, unregistration and resume. Stop can recover and terminate verified survivors after the supervisor dies. Unknown old processes are never adopted or signaled by guessed names. A worker that exits between creating a process and durably recording its identity can still leave an unrecorded process; inspect the project if that exceptional startup window is interrupted.
 
-## Integration boundary
+Malformed metadata is surfaced as workspace health issues. Valid records remain readable. New launches and registration mutations fail closed until records are repaired; this avoids starting a duplicate trainer whose previous metadata cannot be interpreted. Case-insensitive project identity prevents registrations that would collide on Windows.
 
-A project supplies its own executable, dependencies and checkpoint logic. Studio supplies the cwd, an output directory, environment variables and logs. Existing trainers can consume output CLI arguments or use a small wrapper owned by that project. JSONL/CSV numeric metrics are optional. No named model stages, model architecture enum, hardcoded watchdog script, training-config format or checkpoint layout is part of Studio's API.
+Output reads are independent of lifecycle control. Metrics read recent bounded JSONL/CSV rows and discard invalid, incomplete and nonfinite values. Artifact paths must remain under the job output root; linked output roots are rejected. A failed output panel doesn't make the frontend lose access to status or stopping.
+
+## Boundaries
+
+The CLI contains only Studio commands; no LLM extra, trainer, tokenizer, data normalizer or project-specific profile is installed. Historical training code remains recoverable from Git, with migration instructions in MIGRATION.md. The standalone ADLX probe source and vendored licenses remain in hardware_probe/ and vendor/ as a separate native utility; it is not packaged or loaded by the Python app.
+
+The Windows shell verifies application identity through HTTP and launches the backend with file logging. It does not own trainer lifetime or redirect backend logs through pipes that would disappear when the shell closes. Its default workspace matches the Python CLI.

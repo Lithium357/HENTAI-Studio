@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "hentai-studio"
-version = "0.4.0"
+version = "0.5.0"
 description = "Standalone local training project and job manager"
 readme = "README.md"
 requires-python = ">=3.11"
@@ -17,17 +17,20 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-llm = ["torch>=2.5", "peft>=0.20,<0.21", "tokenizers>=0.22,<0.23", "transformers>=4.57,<5", "accelerate>=1.10,<2", "safetensors>=0.4,<1"]
 dev = ["pytest>=8,<10", "httpx2>=2.16,<3"]
 
 [project.scripts]
 hentai-studio = "hentai_studio.cli:main"
 
+[tool.setuptools]
+include-package-data = false
+
 [tool.setuptools.packages.find]
 where = ["src"]
+namespaces = false
 
 [tool.setuptools.package-data]
-hentai_studio = ["dashboard_static/*", "bin/*.exe"]
+hentai_studio = ["dashboard_static/*"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

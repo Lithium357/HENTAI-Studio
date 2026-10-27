@@ -83,13 +83,60 @@ try {
   await page.waitForFunction(() => document.getElementById("jobState").textContent.includes("stopped"));
   await page.reload();
   await page.waitForFunction(() => document.querySelectorAll(".job-item").length === 3);
-  if (process.env.STUDIO_SCREENSHOT) await page.screenshot({path: process.env.STUDIO_SCREENSHOT, fullPage: true});
+  if (process.env.STUDIO_SCREENSHOT) await page.screenshot({
+    path: process.env.STUDIO_SCREENSHOT,
+    fullPage: true
+  });
+  // Reload starts in workspace history. Select the project again to launch commands.
+  await page.locator(".project-item").filter({
+    hasText: "Trainer <example>"
+  }).click();
+  await page.waitForFunction(() => !document.getElementById("start").disabled);
+  // A failed mutation must stay visible across successful refreshes.
+  await page.route("**/api/projects/external/jobs", route => route.fulfill({
+    status: 409,
+    json: {
+      error: {
+        code: "fixture_conflict",
+        message: "Persistent action failure"
+      }
+    }
+  }));
+  await page.locator("#start").click();
+  await page.waitForFunction(() => document.getElementById("notice").textContent.includes("Persistent action failure"));
+  await page.waitForTimeout(2400);
+  assert.match(await page.locator("#notice").textContent(), /Persistent action failure/);
+  await page.unroute("**/api/projects/external/jobs");
+  // One broken output panel must not hide console, state or controls.
+  await page.route("**/metrics", route => route.fulfill({
+    status: 503,
+    json: {
+      error: {
+        message: "metric fixture unavailable"
+      }
+    }
+  }));
+  await page.locator("#refresh").click();
+  await page.waitForFunction(() => document.getElementById("metricSummary").textContent.includes("metric fixture unavailable"));
+  assert.match(await page.locator("#jobState").textContent(), /stopped/);
+  assert.ok((await page.locator("#logs").textContent()).length > 0);
+  await page.unroute("**/metrics");
   await page.setViewportSize({
     width: 390,
     height: 844
   });
   assert.equal(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth), false);
   assert.equal(await page.locator("#start").isVisible(), true);
+  // Unregistered projects retain an accessible history view.
+  await page.setViewportSize({
+    width: 1440,
+    height: 1100
+  });
+  page.once("dialog", dialog => dialog.accept());
+  await page.locator("#removeProject").click();
+  await page.waitForFunction(() => document.getElementById("projectName").textContent === "All jobs");
+  assert.equal(await page.locator(".job-item").count(), 3);
+  assert.equal(await page.locator("#launchPanel").isVisible(), false);
   assert.deepEqual(errors, []);
   console.log("Browser acceptance passed: register, train, metrics, artifact download, resume, stop, reload, mobile.");
 } finally {

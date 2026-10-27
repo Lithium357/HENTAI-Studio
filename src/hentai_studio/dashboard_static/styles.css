@@ -427,3 +427,5 @@ a:focus-visible {
     font-size: 25px
   }
 }
+
+#notice { white-space: pre-line; }

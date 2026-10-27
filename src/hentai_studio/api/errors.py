@@ -7,13 +7,8 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from starlette.exceptions import HTTPException
 
+from ..errors import StudioError
 from .schemas import ErrorDetail, ErrorResponse
-
-
-class ApiError(Exception):
-    def __init__(self, status: int, code: str, message: str):
-        self.status, self.code, self.message = status, code, message
-        super().__init__(message)
 
 
 def error_response(
@@ -30,8 +25,8 @@ def error_response(
 
 
 def register_error_handlers(app: FastAPI) -> None:
-    @app.exception_handler(ApiError)
-    async def domain_error(request: Request, error: ApiError):
+    @app.exception_handler(StudioError)
+    async def domain_error(request: Request, error: StudioError):
         return error_response(error.status, error.code, error.message)
 
     @app.exception_handler(RequestValidationError)

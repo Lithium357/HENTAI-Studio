@@ -44,6 +44,8 @@ def test_external_job_survives_actual_server_restart(tmp_path):
                 str(workspace),
                 "--port",
                 str(port),
+                "--log-file",
+                str(tmp_path / "server.log"),
             ],
             stdout=subprocess.DEVNULL,
             stderr=subprocess.DEVNULL,
@@ -88,6 +90,9 @@ def test_external_job_survives_actual_server_restart(tmp_path):
         reconnected = request(f"/api/jobs/{job['id']}")
         assert reconnected["state"] == "running"
         assert reconnected["worker_pid"] == running["worker_pid"]
+        assert "Uvicorn running" in (tmp_path / "server.log").read_text(
+            encoding="utf-8"
+        )
         assert (
             "external trainer alive" in request(f"/api/jobs/{job['id']}/logs")["text"]
         )

@@ -31,9 +31,9 @@ export async function requestJSON(path, {
 }
 const id = encodeURIComponent;
 export const api = {
-  health: () => requestJSON("/api/health"),
+  health: options => requestJSON("/api/health", options),
   projects: {
-    list: () => requestJSON("/api/projects"),
+    list: options => requestJSON("/api/projects", options),
     save: (project, update = false) => requestJSON(`/api/projects${update ? `/${id(project.id)}` : ""}`, {
       method: update ? "PUT" : "POST",
       body: JSON.stringify(project)
@@ -43,8 +43,8 @@ export const api = {
     }),
   },
   jobs: {
-    list: project => requestJSON(`/api/jobs?project_id=${id(project)}`),
-    get: job => requestJSON(`/api/jobs/${id(job)}`),
+    list: (project, options) => requestJSON(`/api/jobs${project ? `?project_id=${id(project)}` : ""}`, options),
+    get: (job, options) => requestJSON(`/api/jobs/${id(job)}`, options),
     start: (project, command, resume_from = null) => requestJSON(`/api/projects/${id(project)}/jobs`, {
       method: "POST",
       body: JSON.stringify({
@@ -55,9 +55,9 @@ export const api = {
     stop: job => requestJSON(`/api/jobs/${id(job)}/stop`, {
       method: "POST"
     }),
-    logs: job => requestJSON(`/api/jobs/${id(job)}/logs?tail=true`),
-    metrics: job => requestJSON(`/api/jobs/${id(job)}/metrics`),
-    artifacts: job => requestJSON(`/api/jobs/${id(job)}/artifacts`),
+    logs: (job, options) => requestJSON(`/api/jobs/${id(job)}/logs?tail=true`, options),
+    metrics: (job, options) => requestJSON(`/api/jobs/${id(job)}/metrics`, options),
+    artifacts: (job, options) => requestJSON(`/api/jobs/${id(job)}/artifacts`, options),
     artifactURL: (job, path) => `/api/jobs/${id(job)}/artifacts/${path.split("/").map(id).join("/")}`,
   },
 };

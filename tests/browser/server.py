@@ -6,7 +6,9 @@ import socket
 import sys
 from pathlib import Path
 from tempfile import TemporaryDirectory
+
 import uvicorn
+
 from hentai_studio.api.app import create_app
 
 with TemporaryDirectory(
