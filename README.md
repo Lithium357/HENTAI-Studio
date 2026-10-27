@@ -55,6 +55,19 @@ To plot metrics, write numeric newline-terminated JSONL records to `metrics.json
 
 Any numeric column can be plotted. Metrics are optional. [examples/project.json](examples/project.json) is a registration template; [examples/demo_train.py](examples/demo_train.py) is a standard-library demo with checkpoints, metrics and resume. Register this repository and use your Python executable followed by `examples/demo_train.py` to try it without a model.
 
+## Use from Python
+
+```python
+from hentai_studio import StudioClient
+
+studio = StudioClient()
+project = studio.create_project("/absolute/project", {"train": ["python", "train.py"]})
+job = studio.wait(studio.start_job(project))
+print(job["state"], studio.logs(job, tail=8192)["text"])
+```
+
+The client handles registration defaults, pagination and structured errors. Project edits use PATCH; all jobs start through POST /api/jobs. See [the API guide](docs/API.md) for HTTP examples, stop/resume, downloads and error handling.
+
 ## Manage jobs
 
 Each project can have one active job, while independent projects can run concurrently. Every job snapshots its command/configuration and owns separate output and console files. Dashboard shutdown leaves supervisors running; reopen the same workspace to reconnect.

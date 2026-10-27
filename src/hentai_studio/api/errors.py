@@ -27,12 +27,31 @@ def error_response(
 def register_error_handlers(app: FastAPI) -> None:
     @app.exception_handler(StudioError)
     async def domain_error(request: Request, error: StudioError):
-        return error_response(error.status, error.code, error.message)
+        details = [
+            {
+                **item,
+                "field": "/body/"
+                + "/".join(
+                    str(part).replace("~", "~0").replace("/", "~1")
+                    for part in item["field"]
+                ),
+            }
+            for item in error.details
+        ]
+        return error_response(error.status, error.code, error.message, details)
 
     @app.exception_handler(RequestValidationError)
     async def validation_error(request: Request, error: RequestValidationError):
         details = [
-            {"field": list(item["loc"]), "message": item["msg"], "type": item["type"]}
+            {
+                "field": "/"
+                + "/".join(
+                    str(part).replace("~", "~0").replace("/", "~1")
+                    for part in item["loc"]
+                ),
+                "message": item["msg"],
+                "type": item["type"],
+            }
             for item in error.errors()
         ]
         return error_response(

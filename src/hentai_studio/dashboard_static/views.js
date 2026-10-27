@@ -60,7 +60,7 @@ export function renderWorkspace(state, {
   $("jobs").replaceChildren(...state.jobs.map(job => {
     const button = document.createElement("button");
     button.className = "job-item" + (job.id === state.jobId ? " selected" : "");
-    button.textContent = `${state.projectId ? "" : job.project.name + " · "}${job.command} · ${job.state}${job.has_live_processes && !["running", "starting", "stopping"].includes(job.state) ? " · processes remain" : ""}`;
+    button.textContent = `${state.projectId ? "" : job.project_name + " · "}${job.command} · ${job.state}${job.has_live_processes && !["running", "starting", "stopping"].includes(job.state) ? " · processes remain" : ""}`;
     const time = document.createElement("small");
     time.textContent = new Date(job.created_at).toLocaleString();
     button.append(time);

@@ -82,14 +82,14 @@ def test_external_job_survives_actual_server_restart(tmp_path):
                 "commands": {"train": [sys.executable, "-u", "train.py"]},
             },
         )
-        job = request("/api/projects/external/jobs", {"command": "train"})
+        job = request("/api/jobs", {"project_id": "external", "command": "train"})
         running = wait_state(job["id"], {"running"})
         server.terminate()
         server.wait(timeout=10)
         server = start_server()
         reconnected = request(f"/api/jobs/{job['id']}")
         assert reconnected["state"] == "running"
-        assert reconnected["worker_pid"] == running["worker_pid"]
+        assert reconnected["id"] == running["id"] and reconnected["has_live_processes"]
         assert "Uvicorn running" in (tmp_path / "server.log").read_text(
             encoding="utf-8"
         )

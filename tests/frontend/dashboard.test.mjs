@@ -148,3 +148,51 @@ test("project definitions are submitted as argument arrays and artifacts encode 
   assert.deepEqual(JSON.parse(request.options.body).commands.train, ["python", "train.py"]);
   assert.equal(api.jobs.artifactURL("job", "a b/weights#.bin"), "/api/jobs/job/artifacts/a%20b/weights%23.bin");
 });
+
+
+test("browser client follows pages and uses PATCH and the canonical job routes", async t => {
+  const calls = [];
+  t.mock.method(globalThis, "fetch", async (path, options) => {
+    calls.push({
+      path,
+      options
+    });
+    const page = path === "/api/projects" ? {
+        items: [{
+          id: "one"
+        }],
+        next_cursor: "opaque=="
+      } :
+      path.startsWith("/api/projects?cursor=") ? {
+        items: [{
+          id: "two"
+        }],
+        next_cursor: null
+      } : {
+        id: "saved"
+      };
+    return {
+      ok: true,
+      status: 200,
+      json: async () => page
+    };
+  });
+  assert.deepEqual((await api.projects.list()).items.map(item => item.id), ["one", "two"]);
+  assert.equal(calls[1].path, "/api/projects?cursor=opaque%3D%3D");
+  await api.projects.save({
+    id: "one",
+    name: "Changed"
+  }, true);
+  assert.equal(calls.at(-1).options.method, "PATCH");
+  assert.deepEqual(JSON.parse(calls.at(-1).options.body), {
+    name: "Changed"
+  });
+  await api.jobs.start("one", "train");
+  assert.equal(calls.at(-1).path, "/api/jobs");
+  assert.deepEqual(JSON.parse(calls.at(-1).options.body), {
+    project_id: "one",
+    command: "train"
+  });
+  await api.jobs.start("one", "resume", "old-job");
+  assert.equal(calls.at(-1).path, "/api/jobs/old-job/resume");
+});

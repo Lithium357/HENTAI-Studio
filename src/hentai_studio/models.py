@@ -1,8 +1,10 @@
+from datetime import datetime
 from typing import Annotated, Generic, Literal, TypeVar
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 T = TypeVar("T")
+Command = Annotated[list[str], Field(min_length=1)]
 Identifier = Annotated[str, Field(pattern=r"^[a-zA-Z0-9][a-zA-Z0-9_-]{0,63}$")]
 
 
@@ -18,13 +20,15 @@ class Project(Model):
     id: Identifier
     name: str = Field(min_length=1, max_length=160)
     root: str = Field(min_length=1)
-    commands: dict[Identifier, list[str]] = Field(min_length=1, max_length=32)
+    commands: dict[Identifier, Command] = Field(min_length=1, max_length=32)
     environment: dict[str, str] = Field(default_factory=dict)
     metrics_file: str = "metrics.jsonl"
 
     @field_validator("name")
     @classmethod
     def nonblank_name(cls, value):
+        if value is None:
+            return value
         if not value.strip():
             raise ValueError("Project name cannot be blank.")
         return value.strip()
@@ -40,7 +44,7 @@ class Project(Model):
             *(f"COM{i}" for i in range(1, 10)),
             *(f"LPT{i}" for i in range(1, 10)),
         }
-        if value.upper() in reserved:
+        if value is not None and value.upper() in reserved:
             raise ValueError("Project ID is a reserved Windows device name.")
         return value
 
@@ -116,6 +120,13 @@ class Job(Model):
     worker_created: float | None = None
     error: str | None = None
     has_live_processes: bool = False
+
+    @field_validator("created_at", "started_at", "finished_at")
+    @classmethod
+    def valid_timestamp(cls, value):
+        if value is not None:
+            datetime.fromisoformat(value.replace("Z", "+00:00"))
+        return value
 
     @model_validator(mode="after")
     def consistent_snapshot(self):

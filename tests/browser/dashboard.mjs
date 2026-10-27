@@ -93,20 +93,23 @@ try {
   }).click();
   await page.waitForFunction(() => !document.getElementById("start").disabled);
   // A failed mutation must stay visible across successful refreshes.
-  await page.route("**/api/projects/external/jobs", route => route.fulfill({
-    status: 409,
-    json: {
-      error: {
-        code: "fixture_conflict",
-        message: "Persistent action failure"
+  await page.route("**/api/jobs", route => {
+    if (route.request().method() !== "POST") return route.continue();
+    return route.fulfill({
+      status: 409,
+      json: {
+        error: {
+          code: "fixture_conflict",
+          message: "Persistent action failure"
+        }
       }
-    }
-  }));
+    });
+  });
   await page.locator("#start").click();
   await page.waitForFunction(() => document.getElementById("notice").textContent.includes("Persistent action failure"));
   await page.waitForTimeout(2400);
   assert.match(await page.locator("#notice").textContent(), /Persistent action failure/);
-  await page.unroute("**/api/projects/external/jobs");
+  await page.unroute("**/api/jobs");
   // One broken output panel must not hide console, state or controls.
   await page.route("**/metrics", route => route.fulfill({
     status: 503,

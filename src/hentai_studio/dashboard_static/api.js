@@ -30,32 +30,58 @@ export async function requestJSON(path, {
   }
 }
 const id = encodeURIComponent;
+async function allPages(path, options) {
+  const items = [];
+  let cursor;
+  do {
+    const separator = path.includes("?") ? "&" : "?";
+    const page = await requestJSON(path + (cursor ? `${separator}cursor=${id(cursor)}` : ""), options);
+    items.push(...page.items);
+    cursor = page.next_cursor;
+  } while (cursor);
+  return {
+    items
+  };
+}
 export const api = {
   health: options => requestJSON("/api/health", options),
   projects: {
-    list: options => requestJSON("/api/projects", options),
-    save: (project, update = false) => requestJSON(`/api/projects${update ? `/${id(project.id)}` : ""}`, {
-      method: update ? "PUT" : "POST",
-      body: JSON.stringify(project)
-    }),
+    list: options => allPages("/api/projects", options),
+    save: (project, update = false) => {
+      const {
+        id: projectId,
+        ...fields
+      } = project;
+      return requestJSON(`/api/projects${update ? `/${id(projectId)}` : ""}`, {
+        method: update ? "PATCH" : "POST",
+        body: JSON.stringify(update ? fields : project),
+      });
+    },
     remove: project => requestJSON(`/api/projects/${id(project)}`, {
       method: "DELETE"
     }),
   },
   jobs: {
-    list: (project, options) => requestJSON(`/api/jobs${project ? `?project_id=${id(project)}` : ""}`, options),
+    list: (project, options) => allPages(`/api/jobs${project ? `?project_id=${id(project)}` : ""}`, options),
     get: (job, options) => requestJSON(`/api/jobs/${id(job)}`, options),
-    start: (project, command, resume_from = null) => requestJSON(`/api/projects/${id(project)}/jobs`, {
-      method: "POST",
-      body: JSON.stringify({
-        command,
-        resume_from
-      })
-    }),
+    start: (project_id, command, resume_from = null) => resume_from ?
+      requestJSON(`/api/jobs/${id(resume_from)}/resume`, {
+        method: "POST",
+        body: JSON.stringify({
+          command
+        })
+      }) :
+      requestJSON("/api/jobs", {
+        method: "POST",
+        body: JSON.stringify({
+          project_id,
+          command
+        })
+      }),
     stop: job => requestJSON(`/api/jobs/${id(job)}/stop`, {
       method: "POST"
     }),
-    logs: (job, options) => requestJSON(`/api/jobs/${id(job)}/logs?tail=true`, options),
+    logs: (job, options) => requestJSON(`/api/jobs/${id(job)}/logs?tail=65536`, options),
     metrics: (job, options) => requestJSON(`/api/jobs/${id(job)}/metrics`, options),
     artifacts: (job, options) => requestJSON(`/api/jobs/${id(job)}/artifacts`, options),
     artifactURL: (job, path) => `/api/jobs/${id(job)}/artifacts/${path.split("/").map(id).join("/")}`,

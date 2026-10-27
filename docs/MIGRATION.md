@@ -1,3 +1,7 @@
+# API 0.6 migration
+
+See [the API migration checklist](API.md#migrating-from-05) for PATCH edits, global job creation, dedicated resume, paginated lists, compact public jobs and numeric log tails. The Python client is available as `from hentai_studio import StudioClient`. Existing on-disk project/job records are unchanged.
+
 # Migrating to Studio 0.5
 
 Studio now owns only local project/job management. HENTAI and Lucy are external training projects; Studio does not contain their model/data implementations or require either repository.

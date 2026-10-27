@@ -30,15 +30,18 @@ def definition(tmp_path):
 
 
 def test_empty_workspace_serves_dashboard_and_typed_api(client):
-    assert client.get("/api/projects").json() == {"items": []}
-    assert client.get("/api/jobs").json() == {"items": []}
-    assert client.get("/api/health").json()["version"] == "0.5.0"
+    assert client.get("/api/projects").json() == {"items": [], "next_cursor": None}
+    assert client.get("/api/jobs").json() == {"items": [], "next_cursor": None}
+    assert client.get("/api/health").json()["version"] == "0.6.0"
     assert 'type="module"' in client.get("/").text
     for asset in ("api", "app", "metrics", "poller"):
         assert client.get(f"/assets/{asset}.js").status_code == 200
     schema = client.get("/api/openapi.json").json()
-    assert "/api/projects/{project_id}/jobs" in schema["paths"]
-    assert schema["components"]["schemas"]["Project"]["additionalProperties"] is False
+    assert "/api/jobs" in schema["paths"]
+    assert (
+        schema["components"]["schemas"]["ProjectCreate"]["additionalProperties"]
+        is False
+    )
     assert client.get("/api/docs").status_code == 200
 
 
@@ -49,9 +52,14 @@ def test_project_crud_is_persistent_and_never_changes_training_files(
     assert client.post("/api/projects", json=body).status_code == 201
     assert client.post("/api/projects", json=body).status_code == 409
     body["name"] = "Renamed"
-    assert client.put("/api/projects/arbitrary", json=body).json()["name"] == "Renamed"
+    assert (
+        client.patch("/api/projects/arbitrary", json={"name": "Renamed"}).json()["name"]
+        == "Renamed"
+    )
     assert app.state.workspace.get_project("arbitrary").name == "Renamed"
-    assert client.put("/api/projects/other", json=body).status_code == 422
+    assert (
+        client.patch("/api/projects/other", json={"name": "Renamed"}).status_code == 404
+    )
     assert client.delete("/api/projects/arbitrary").status_code == 204
     assert client.get("/api/projects/arbitrary").status_code == 404
     assert tmp_path.is_dir()
@@ -135,7 +143,7 @@ def test_old_model_routes_and_asset_traversal_are_absent(client, path):
 def test_invalid_job_request_never_spawns(client, app):
     app.state.workspace.start_job = Mock()
     response = client.post(
-        "/api/projects/any/jobs", json={"command": "train", "shell": "anything"}
+        "/api/jobs", json={"project_id": "any", "command": "train", "shell": "anything"}
     )
     assert response.status_code == 422
     app.state.workspace.start_job.assert_not_called()
@@ -154,7 +162,7 @@ def test_invalid_job_request_never_spawns(client, app):
 def test_command_api_rejects_untrusted_browser_requests(client, app, headers):
     app.state.workspace.start_job = Mock()
     response = client.post(
-        "/api/projects/any/jobs", json={"command": "train"}, headers=headers
+        "/api/jobs", json={"project_id": "any", "command": "train"}, headers=headers
     )
     assert (
         response.status_code == 403
@@ -177,5 +185,5 @@ def test_workspace_corruption_is_reported_without_crashing_dashboard(client, app
     assert response.status_code == 200
     assert response.json()["status"] == "degraded"
     assert response.json()["issues"][0]["resource"] == "projects/broken.json"
-    assert client.get("/api/projects").json() == {"items": []}
+    assert client.get("/api/projects").json() == {"items": [], "next_cursor": None}
     assert client.get("/").status_code == 200

@@ -188,6 +188,29 @@ class Workspace:
             atomic_json(path, project.model_dump())
             return project
 
+    def update_project(self, project_id, changes):
+        with self._lock:
+            from pydantic import ValidationError
+
+            current = self.get_project(project_id)
+            try:
+                updated = Project.model_validate(current.model_dump() | changes)
+            except ValidationError as error:
+                raise StudioError(
+                    422,
+                    "invalid_project",
+                    "The supplied project fields are invalid.",
+                    details=[
+                        {
+                            "field": list(item["loc"]),
+                            "message": item["msg"],
+                            "type": item["type"],
+                        }
+                        for item in error.errors()
+                    ],
+                ) from error
+            return self.save_project(updated)
+
     def delete_project(self, project_id):
         with self._lock:
             self._require_healthy_history()

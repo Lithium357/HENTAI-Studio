@@ -28,3 +28,5 @@ Build a wheel and install it in a fresh environment. Run the entire Python and b
 `dotnet build windows/HENTAIStudio/HENTAIStudio.csproj --configuration Release` validates the optional shell. Native runtime/UI launch is separate from compilation. build.ps1 publishes only unless -Install is explicitly supplied; installation creates a private backend venv and shortcuts without deleting workspace data.
 
 GitHub Actions runs the standalone Python/JavaScript suites on Windows and Linux with Python 3.11 and 3.12. Browser and native runtime checks remain separate acceptance steps.
+
+The API contract suite verifies registration defaults, atomic partial edits, public job redaction, links/actions, cursor scope/stability, idempotent stop, output URLs and stable OpenAPI operations. The Python client suite talks to a real local Uvicorn server and external trainer, covering the full register/start/wait/read/resume/download/error workflow. These tests run with the ordinary dev dependencies; the client itself needs only the standard library.
