@@ -1,0 +1,10 @@
+[package]
+name = "hentai-hardware-probe"
+version = "0.1.0"
+edition = "2021"
+publish = false
+
+[workspace]
+
+[dependencies]
+amd-adlx = { path = "../vendor/ADLX/Samples/rust/amd-adlx" }
