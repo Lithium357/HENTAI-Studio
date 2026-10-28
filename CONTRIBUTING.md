@@ -9,7 +9,6 @@ HENTAI Studio is licensed under the [GNU General Public License v3.0](LICENSE). 
 - Discuss one focused problem before doing extensive work.
 - Keep Studio independent of HENTAI, Lucy, and all model frameworks.
 - Do not submit credentials, private paths, real job logs, datasets, weights, or checkpoints.
-- Never stop an active training job to test an unrelated UI or documentation change. Use a temporary workspace and separate server port.
 
 ## Work locally
 
