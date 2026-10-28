@@ -1,51 +1,40 @@
-# Contributing
+# Contributing to HENTAI Studio
 
-HENTAI is a proprietary personal research project, not an open-source project. Contributions are accepted only with the repository owner's prior approval. See [source provenance](SOURCE_PROVENANCE.md) and [LICENSE.HENTAI](LICENSE.HENTAI).
+Studio is a standalone local project and job manager. Changes to diffusion models, training objectives, datasets, and checkpoint implementations belong in the corresponding trainer repository.
 
-## Before proposing a change
+Contributions require the repository owner’s prior approval. Retained extracted material is subject to its original source terms; see [source provenance](SOURCE_PROVENANCE.md), [LICENSE](LICENSE), and [LICENSE.HENTAI](LICENSE.HENTAI).
 
-- Open or discuss one focused problem before doing extensive work.
-- Do not submit dataset media, manifests containing private paths, model weights, checkpoints, logs, generated samples, credentials, or machine secrets.
-- Keep metadata-only tools media-blind.
-- Do not interrupt an active training run to test an unrelated UI or documentation change.
-- Create a new run/configuration when tensor shapes, vocabulary identity, optimizer layout, or training objectives change.
+## Before you start
 
-## Local verification
+- Discuss one focused problem before doing extensive work.
+- Keep Studio independent of HENTAI, Lucy, and all model frameworks.
+- Do not submit credentials, private paths, real job logs, datasets, weights, or checkpoints.
+- Never stop an active training job to test an unrelated UI or documentation change. Use a temporary workspace and separate server port.
 
-```bash
-source .venv/bin/activate
-python -m pytest -q
+## Work locally
+
+Use Python 3.11+ and Node 20+. From the repository root:
+
+```sh
+python -m pip install -e '.[dev]'
+python -m pytest
+npm test
 git diff --check
 ```
 
-Diffusion model changes belong in HENTAI. For model-construction changes there:
+The standard-library demo trainer and isolated workspaces are enough for application tests. No GPU or ML library is required. [Development](docs/DEVELOPMENT.md) covers browser acceptance, clean-wheel checks, and the optional Windows shell.
 
-```bash
-scratchtag smoke --config configs/rx7800xt-scratch-v3-x4-512.json
-```
+## Keep changes reviewable
 
-Run `scripts/architecture_probe.py` only when the training GPU is idle. It performs a real synthetic optimizer update and competes for VRAM.
+- Explain the user-visible problem and resulting behavior.
+- Add focused tests when behavior changes; use isolated fixtures for process tests.
+- Preserve process identity checks, output confinement, and workspace ownership.
+- Keep the dashboard usable when one output panel fails or the service disconnects.
+- Update the relevant guide when changing the API, CLI, or project integration.
+- Include desktop and mobile screenshots for substantial UI changes, using demo data without machine-specific paths.
 
-## Change expectations
-
-- Add focused tests for behavior and compatibility boundaries.
-- Preserve checkpoint recovery unless the change explicitly versions the format.
-- Keep the training objective and inference scheduler prediction type aligned.
-- Keep historical generation tied to each run's copied config and vocabulary.
-- Update relevant documentation in the same commit.
-- State whether a command touches media, requires a GPU, or mutates run state.
-- Avoid adding heavyweight imports to dashboard-only startup.
-
-## Documentation style
-
-Documentation must distinguish:
-
-- Native neural resolution from resized export dimensions
-- Optimizer steps from micro-batches and images seen
-- A completed checkpoint from a finalized/promoted model
-- Rolling operational estimates from controlled evaluation metrics
-- Tested configurations from merely plausible configurations
+For documentation screenshots, see [the capture instructions](docs/DEVELOPMENT.md#documentation-screenshots).
 
 ## Rights
 
-By submitting a contribution, you represent that you have the right to submit it and agree that, if accepted, it may be incorporated and distributed under this repository's proprietary license. No ownership transfer or additional license is implied without a separate written agreement.
+By submitting a contribution, you represent that you have the right to submit it and agree that, if accepted, it may be incorporated and distributed under this repository’s applicable source terms. No ownership transfer or additional license is implied without a separate written agreement.

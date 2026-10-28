@@ -30,3 +30,7 @@ Build a wheel and install it in a fresh environment. Run the entire Python and b
 GitHub Actions runs the standalone Python/JavaScript suites on Windows and Linux with Python 3.11 and 3.12. Browser and native runtime checks remain separate acceptance steps.
 
 The API contract suite verifies registration defaults, atomic partial edits, public job redaction, links/actions, cursor scope/stability, idempotent stop, output URLs and stable OpenAPI operations. The Python client suite talks to a real local Uvicorn server and external trainer, covering the full register/start/wait/read/resume/download/error workflow. These tests run with the ordinary dev dependencies; the client itself needs only the standard library.
+
+## Documentation screenshots
+
+After the browser dependencies above are installed, run `npm run docs:screenshots`. The capture uses the real dashboard with deterministic illustrative API responses and a temporary static server on a free loopback port. It never connects to a Studio service, starts a trainer, or accesses a real workspace. The resulting dashboard, registration, and mobile previews live in `docs/assets/`. The browser/module environment overrides described above also apply.

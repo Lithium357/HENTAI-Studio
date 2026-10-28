@@ -4,7 +4,8 @@
   "type": "module",
   "scripts": {
     "test": "node --test tests/frontend/*.test.mjs",
-    "test:browser": "node tests/browser/dashboard.mjs"
+    "test:browser": "node tests/browser/dashboard.mjs",
+    "docs:screenshots": "node tests/browser/capture-docs.mjs"
   },
   "devDependencies": {
     "playwright": "1.62.1"
