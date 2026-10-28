@@ -46,7 +46,15 @@ try {
   await page.goto(base);
   await page.waitForFunction(() => document.getElementById("connection").textContent.includes("Connected"));
   assert.equal(await page.locator("#empty").isVisible(), true);
+  if (process.env.STUDIO_SCREENSHOT) await page.screenshot({
+    path: process.env.STUDIO_SCREENSHOT.replace(".png", "-empty.png"),
+    fullPage: true
+  });
   await page.locator("#emptyAdd").click();
+  if (process.env.STUDIO_SCREENSHOT) await page.screenshot({
+    path: process.env.STUDIO_SCREENSHOT.replace(".png", "-editor.png"),
+    fullPage: true
+  });
   await page.locator("#fieldId").fill("external");
   await page.locator("#fieldName").fill("Trainer <example>");
   await page.locator("#fieldRoot").fill(root);
@@ -61,6 +69,14 @@ try {
   await page.locator("#start").click();
   await page.waitForFunction(() => document.getElementById("jobState").textContent.includes("succeeded"));
   assert.ok(await page.locator("#metricLine").getAttribute("d"));
+  assert.ok(await page.locator("#metricArea").getAttribute("d"));
+  assert.equal(await page.locator("#chartEmpty").isVisible(), false);
+  assert.notEqual(await page.locator("#metricValue").textContent(), "—");
+  assert.equal(await page.locator("#completedCount").textContent(), "1");
+  // Polling must keep keyboard users on their selected history button.
+  await page.locator(".job-item.selected").focus();
+  await page.waitForTimeout(2300);
+  assert.equal(await page.locator(".job-item.selected").evaluate(node => node === document.activeElement), true);
   assert.match(await page.locator("#logs").textContent(), /Finished/);
   const checkpoint = page.locator("#artifacts a").filter({
     hasText: "checkpoint.json"
@@ -92,6 +108,10 @@ try {
     hasText: "Trainer <example>"
   }).click();
   await page.waitForFunction(() => !document.getElementById("start").disabled);
+  if (process.env.STUDIO_SCREENSHOT) await page.screenshot({
+    path: process.env.STUDIO_SCREENSHOT.replace(".png", "-project.png"),
+    fullPage: true
+  });
   // A failed mutation must stay visible across successful refreshes.
   await page.route("**/api/jobs", route => {
     if (route.request().method() !== "POST") return route.continue();
@@ -130,6 +150,17 @@ try {
   });
   assert.equal(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth), false);
   assert.equal(await page.locator("#start").isVisible(), true);
+  await page.unroute("**/api/jobs");
+  await page.locator("#refresh").click();
+  await page.waitForFunction(() => !document.getElementById("metricSummary").textContent.includes("unavailable"));
+  if (process.env.STUDIO_SCREENSHOT) await page.screenshot({
+    path: process.env.STUDIO_SCREENSHOT.replace(".png", "-mobile.png"),
+    fullPage: true
+  });
+  // The registration dialog must fit on a phone too.
+  await page.locator("#editProject").click();
+  assert.equal(await page.locator("#editor").evaluate(node => node.scrollWidth > node.clientWidth), false);
+  await page.locator("#closeEditor").click();
   // Unregistered projects retain an accessible history view.
   await page.setViewportSize({
     width: 1440,

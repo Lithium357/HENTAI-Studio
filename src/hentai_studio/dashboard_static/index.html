@@ -3,71 +3,148 @@
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="theme-color" content="#101114">
     <title>
-      HENTAI Studio
+      HENTAI Studio · Training workspace
     </title>
     <link rel="stylesheet" href="/assets/styles.css">
   </head>
   <body>
-    <header>
-      <div>
-        <strong>
-          HENTAI
+    <a class="skip-link" href="#main">
+      Skip to workspace
+    </a>
+    <header class="topbar">
+      <a class="brand" href="/" aria-label="HENTAI Studio home">
+        <span class="brand-mark" aria-hidden="true">
+          H
           <span>
-            Studio
+            ↗
           </span>
-        </strong>
-        <small>
-          TRAINING WORKSPACE
-        </small>
-      </div>
-      <span id="connection" role="status">
-        Connecting…
-      </span>
-      <a href="/api/docs" target="_blank" rel="noopener">
-        API docs ↗
+        </span>
+        <span>
+          HENTAI
+          <b>
+            Studio
+          </b>
+          <small>
+            TRAINING WORKSPACE
+          </small>
+        </span>
       </a>
+      <div class="topbar-right">
+        <span id="connection" role="status">
+          Connecting…
+        </span>
+        <a class="docs-link" href="/api/docs" target="_blank" rel="noopener">
+          API reference
+          <span aria-hidden="true">
+            ↗
+          </span>
+        </a>
+      </div>
     </header>
     <div id="notice" role="alert" hidden>
     </div>
     <div class="layout">
-      <aside>
-        <div class="section-head">
+      <aside class="sidebar">
+        <div class="section-head sidebar-heading">
           <h2>
-            Projects
+            Workspace
           </h2>
-          <button id="addProject">
-            + Register
-          </button>
+          <span class="quiet-label">
+            LOCAL
+          </span>
         </div>
         <nav id="projects" aria-label="Projects">
         </nav>
-        <p class="hint">
-          Run any local trainer in its own environment. Studio manages the process and observes its outputs.
-        </p>
-        <small id="workspace">
-        </small>
+        <button id="addProject" class="add-project">
+          <span aria-hidden="true">
+            ＋
+          </span>
+          Register project
+        </button>
+        <div class="sidebar-footer">
+          <span class="eyebrow">
+            YOUR WORKSPACE
+          </span>
+          <small id="workspace">
+          </small>
+          <p>
+            Any trainer. Any environment.
+            <br>
+            One place to keep track.
+          </p>
+        </div>
       </aside>
-      <main>
-        <section id="empty">
+      <main id="main">
+        <section id="empty" class="empty-workspace">
+          <div class="empty-symbol" aria-hidden="true">
+            ⌘
+          </div>
           <p class="eyebrow">
-            YOUR TRAINING, ONE WORKSPACE
+            READY WHEN YOU ARE
           </p>
           <h1>
-            Bring your project.
+            A home for your
+            <br>
+            next training run.
           </h1>
           <p>
-            Register a directory and the commands you use to train, evaluate, or resume. No model library or project plugin required.
+            Connect a local project, run your commands, and follow every metric, log, and checkpoint in one workspace.
           </p>
           <button id="emptyAdd" class="primary">
-            Register a project
+            ＋ Register your first project
           </button>
+          <div class="onboarding">
+            <div>
+              <span>
+                01
+              </span>
+              <strong>
+                Connect a project
+              </strong>
+              <p>
+                Point Studio to your trainer’s directory.
+              </p>
+            </div>
+            <div>
+              <span>
+                02
+              </span>
+              <strong>
+                Run your command
+              </strong>
+              <p>
+                Use your own code and environment.
+              </p>
+            </div>
+            <div>
+              <span>
+                03
+              </span>
+              <strong>
+                Follow the progress
+              </strong>
+              <p>
+                Metrics, console, and files together.
+              </p>
+            </div>
+          </div>
         </section>
         <section id="projectView" hidden>
-          <div class="section-head">
+          <div class="breadcrumb">
+            Workspace
+            <span>
+              /
+            </span>
+            <span id="breadcrumbName">
+              Overview
+            </span>
+          </div>
+          <div class="section-head project-heading">
             <div>
-              <p class="eyebrow">
-                PROJECT
+              <p class="eyebrow" id="viewEyebrow">
+                WORKSPACE OVERVIEW
               </p>
               <h1 id="projectName">
               </h1>
@@ -76,14 +153,55 @@
             </div>
             <div class="actions" id="projectActions">
               <button id="editProject">
-                Edit
+                Edit project
               </button>
-              <button id="removeProject" class="danger">
+              <button id="removeProject" class="danger subtle">
                 Unregister
               </button>
             </div>
           </div>
+          <div class="overview" aria-label="Workspace summary">
+            <div>
+              <span id="scopeLabel">
+                Registered projects
+              </span>
+              <strong id="projectCount">
+                0
+              </strong>
+            </div>
+            <div>
+              <span>
+                Active jobs
+                <i class="live-dot" aria-hidden="true">
+                </i>
+              </span>
+              <strong id="activeCount">
+                0
+              </strong>
+            </div>
+            <div>
+              <span>
+                Completed jobs
+              </span>
+              <strong id="completedCount">
+                0
+              </strong>
+            </div>
+          </div>
           <div class="launch panel" id="launchPanel">
+            <div class="launch-caption">
+              <span class="panel-icon" aria-hidden="true">
+                ↗
+              </span>
+              <div>
+                <h2>
+                  Launch a job
+                </h2>
+                <p>
+                  Your code, your environment.
+                </p>
+              </div>
+            </div>
             <label>
               Command
               <select id="command">
@@ -91,121 +209,247 @@
             </label>
             <label class="check">
               <input id="resume" type="checkbox">
-              Use selected job as resume source
+              Resume from selected job
             </label>
             <button id="start" class="primary">
               Run command
+              <span aria-hidden="true">
+                ↗
+              </span>
             </button>
           </div>
           <div class="job-layout">
             <section class="panel history">
-              <h2>
-                Jobs
-              </h2>
+              <div class="section-head">
+                <h2>
+                  Job history
+                </h2>
+                <span id="jobCount" class="count">
+                  0
+                </span>
+              </div>
+              <p class="panel-description">
+                Most recent first
+              </p>
               <div id="jobs">
               </div>
             </section>
-            <section id="jobDetail" class="panel" hidden>
-              <div class="section-head">
-                <div>
-                  <h2 id="jobTitle">
-                  </h2>
-                  <code id="jobId">
-                  </code>
-                </div>
-                <button id="stop" class="danger">
-                  Stop job
-                </button>
-              </div>
-              <p id="jobState" role="status">
-              </p>
-              <p id="jobError" class="error">
-              </p>
-              <p id="jobTiming" class="hint">
-              </p>
-              <p id="resumeSource" class="hint">
-              </p>
-              <label>
-                Metric
-                <select id="metric">
-                </select>
-              </label>
-              <svg id="metricChart" viewBox="0 0 600 150" role="img" aria-label="Selected training metric">
-                <path id="metricLine" fill="none" stroke="currentColor" stroke-width="2"/>
-                </path>
-              </svg>
-              <p id="metricSummary" class="hint">
-                No metrics yet.
-              </p>
-              <div class="section-head">
+            <div class="detail-column">
+              <div id="noJob" class="panel no-job">
+                <span class="empty-symbol" aria-hidden="true">
+                  ↗
+                </span>
                 <h2>
-                  Console
+                  Your next run starts here
                 </h2>
-                <button id="refresh">
-                  Refresh
-                </button>
+                <p>
+                  Choose a command above to launch a job. Its progress and outputs will appear here.
+                </p>
               </div>
-              <pre id="logs" tabindex="0" aria-label="Job console">
-              </pre>
-              <h2>
-                Artifacts
-              </h2>
-              <ul id="artifacts">
-              </ul>
-            </section>
+              <section id="jobDetail" hidden>
+                <div class="panel job-summary">
+                  <div class="section-head">
+                    <div>
+                      <p class="eyebrow">
+                        SELECTED JOB
+                      </p>
+                      <h2 id="jobTitle">
+                      </h2>
+                    </div>
+                    <button id="stop" class="danger">
+                      Stop job
+                    </button>
+                  </div>
+                  <div class="job-meta">
+                    <p id="jobState" class="status" role="status">
+                    </p>
+                    <code id="jobId">
+                    </code>
+                  </div>
+                  <p id="jobError" class="error">
+                  </p>
+                  <p id="jobTiming" class="hint">
+                  </p>
+                  <p id="resumeSource" class="hint">
+                  </p>
+                </div>
+                <section class="panel metrics-panel">
+                  <div class="section-head">
+                    <div>
+                      <h2>
+                        Training metrics
+                      </h2>
+                      <p class="panel-description">
+                        Progress from your trainer
+                      </p>
+                    </div>
+                    <label class="metric-select">
+                      <span class="sr-only">
+                        Metric
+                      </span>
+                      <select id="metric">
+                      </select>
+                    </label>
+                  </div>
+                  <div class="chart-head">
+                    <strong id="metricValue">
+                      —
+                    </strong>
+                    <span id="metricName">
+                      Awaiting metrics
+                    </span>
+                  </div>
+                  <div class="chart-container">
+                    <svg id="metricChart" viewBox="0 0 600 150" preserveAspectRatio="none" role="img" aria-label="Selected training metric">
+                      <defs>
+                        <linearGradient id="chartFill" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="0%" stop-color="#e9a17b" stop-opacity=".2"/>
+                          <stop offset="100%" stop-color="#e9a17b" stop-opacity="0"/>
+                        </linearGradient>
+                      </defs>
+                      <path id="metricArea" fill="url(#chartFill)"/>
+                      <path id="metricLine" fill="none" stroke="currentColor" stroke-width="2" vector-effect="non-scaling-stroke"/>
+                    </svg>
+                    <div id="chartEmpty">
+                      Metrics will appear as your trainer writes them.
+                    </div>
+                  </div>
+                  <p id="metricSummary" class="hint">
+                    No metrics yet.
+                  </p>
+                </section>
+                <section class="panel console-panel">
+                  <div class="section-head">
+                    <h2>
+                      <span class="console-symbol" aria-hidden="true">
+                        &gt;_
+                      </span>
+                      Console
+                    </h2>
+                    <button id="refresh" class="subtle">
+                      ↻ Refresh
+                    </button>
+                  </div>
+                  <pre id="logs" tabindex="0" aria-label="Job console">
+                  </pre>
+                </section>
+                <section class="panel artifacts-panel">
+                  <div class="section-head">
+                    <div>
+                      <h2>
+                        Output files
+                      </h2>
+                      <p class="panel-description">
+                        Checkpoints and artifacts from this job
+                      </p>
+                    </div>
+                    <span class="quiet-label">
+                      DOWNLOAD
+                    </span>
+                  </div>
+                  <ul id="artifacts">
+                  </ul>
+                </section>
+              </section>
+            </div>
           </div>
         </section>
       </main>
     </div>
-    <dialog id="editor">
+    <dialog id="editor" aria-labelledby="editorTitle">
       <form id="projectForm">
-        <div class="section-head">
-          <h2 id="editorTitle">
-            Register project
-          </h2>
-          <button type="button" id="closeEditor" aria-label="Close">
+        <div class="section-head editor-heading">
+          <div>
+            <p class="eyebrow">
+              WORKSPACE SETUP
+            </p>
+            <h2 id="editorTitle">
+              Register project
+            </h2>
+          </div>
+          <button type="button" id="closeEditor" class="subtle" aria-label="Close">
             ✕
           </button>
         </div>
+        <p class="editor-intro">
+          Connect your trainer. Studio runs commands in your project’s directory and keeps each job’s outputs together.
+        </p>
+        <div class="form-grid">
+          <label>
+            Display name
+            <input id="fieldName" required placeholder="My training project" autocomplete="off">
+          </label>
+          <label>
+            Project ID
+            <input id="fieldId" required pattern="[A-Za-z0-9][A-Za-z0-9_-]{0,63}" placeholder="my-project" autocomplete="off">
+          </label>
+        </div>
         <label>
-          Project ID
-          <input id="fieldId" required pattern="[A-Za-z0-9][A-Za-z0-9_-]{0,63}" placeholder="my-project">
+          Project directory
+          <input id="fieldRoot" required placeholder="C:\Projects\trainer or /home/me/trainer" autocomplete="off">
+          <span class="hint">
+            Use an absolute path on the machine running Studio.
+          </span>
         </label>
         <label>
-          Display name
-          <input id="fieldName" required placeholder="My training project">
-        </label>
-        <label>
-          Absolute project directory
-          <input id="fieldRoot" required placeholder="/home/me/my-trainer or C:\Projects\trainer">
-        </label>
-        <label>
-          Commands (JSON argument arrays)
-          <textarea id="fieldCommands" required rows="5" spellcheck="false">
-            {"train": ["/path/to/project/.venv/bin/python", "train.py", "--output", "{output_dir}"]}
+          Commands
+          <span class="field-note">
+            JSON argument arrays
+          </span>
+          <textarea id="fieldCommands" required rows="7" spellcheck="false">
+            {"train": ["python", "train.py"]}
           </textarea>
         </label>
-        <p class="hint">
-          Arguments run directly, without a shell. Use the project's interpreter. Available substitutions: {project_root}, {output_dir}. Trainers also receive STUDIO_OUTPUT_DIR and, when resuming, STUDIO_RESUME_DIR.
+        <p class="hint command-help">
+          Use your project’s Python executable if it has a virtual environment. Arguments run directly, without a shell. Substitutions:
+          <code>
+            {project_root}
+          </code>
+          ,
+          <code>
+            {output_dir}
+          </code>
+          .
         </p>
-        <label>
-          Environment variables (JSON object)
-          <textarea id="fieldEnv" rows="2" spellcheck="false">
-            {}
-          </textarea>
-        </label>
-        <label>
-          Metrics file in job output directory
-          <input id="fieldMetrics" required value="metrics.jsonl">
-        </label>
-        <p class="hint">
-          JSONL or CSV with numeric columns; optional. Write checkpoints and other artifacts into STUDIO_OUTPUT_DIR.
-        </p>
+        <details class="advanced">
+          <summary>
+            Environment &amp; output settings
+          </summary>
+          <label>
+            Environment variables
+            <span class="field-note">
+              JSON object
+            </span>
+            <textarea id="fieldEnv" rows="2" spellcheck="false">
+              {}
+            </textarea>
+          </label>
+          <label>
+            Metrics filename
+            <input id="fieldMetrics" required value="metrics.jsonl">
+          </label>
+          <p class="hint">
+            JSONL or CSV with numeric columns. Trainers receive
+            <code>
+              STUDIO_OUTPUT_DIR
+            </code>
+            and, when resuming,
+            <code>
+              STUDIO_RESUME_DIR
+            </code>
+            . Write metrics, checkpoints, and other artifacts into the output directory.
+          </p>
+        </details>
         <p id="formError" class="error" role="alert">
         </p>
-        <button id="saveProject" class="primary" type="submit">
-          Save project
-        </button>
+        <div class="editor-footer">
+          <span>
+            Project files stay in their original directory.
+          </span>
+          <button id="saveProject" class="primary" type="submit">
+            Save project ↗
+          </button>
+        </div>
       </form>
     </dialog>
     <script type="module" src="/assets/app.js">
