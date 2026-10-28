@@ -7,6 +7,7 @@ name = "hentai-studio"
 version = "0.6.0"
 description = "Standalone local training project and job manager"
 readme = "README.md"
+license = {file = "LICENSE"}
 requires-python = ">=3.11"
 dependencies = [
   "fastapi>=0.162,<1",
@@ -24,6 +25,7 @@ hentai-studio = "hentai_studio.cli:main"
 
 [tool.setuptools]
 include-package-data = false
+license-files = ["LICENSE"]
 
 [tool.setuptools.packages.find]
 where = ["src"]

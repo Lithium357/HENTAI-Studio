@@ -2,7 +2,7 @@
 
 Studio is a standalone local project and job manager. Changes to diffusion models, training objectives, datasets, and checkpoint implementations belong in the corresponding trainer repository.
 
-Contributions require the repository owner’s prior approval. Retained extracted material is subject to its original source terms; see [source provenance](SOURCE_PROVENANCE.md), [LICENSE](LICENSE), and [LICENSE.HENTAI](LICENSE.HENTAI).
+HENTAI Studio is licensed under the [GNU General Public License v3.0](LICENSE). See [source provenance](SOURCE_PROVENANCE.md) for the project’s history and third-party notices.
 
 ## Before you start
 
@@ -37,4 +37,4 @@ For documentation screenshots, see [the capture instructions](docs/DEVELOPMENT.m
 
 ## Rights
 
-By submitting a contribution, you represent that you have the right to submit it and agree that, if accepted, it may be incorporated and distributed under this repository’s applicable source terms. No ownership transfer or additional license is implied without a separate written agreement.
+By submitting a contribution, you represent that you have the right to submit it and agree to license it under the GNU General Public License v3.0, the same license as HENTAI Studio.

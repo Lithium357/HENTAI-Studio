@@ -144,4 +144,4 @@ No ML packages or GPU are required. See [Contributing](CONTRIBUTING.md) before p
 
 ---
 
-<sub>Source terms and extraction history: [LICENSE](LICENSE) · [LICENSE.HENTAI](LICENSE.HENTAI) · [SOURCE_PROVENANCE.md](SOURCE_PROVENANCE.md). Retained upstream material keeps its original terms.</sub>
+<sub>Licensed under the [GNU General Public License v3.0](LICENSE). See [source provenance](SOURCE_PROVENANCE.md) for the project’s history and third-party notices.</sub>
