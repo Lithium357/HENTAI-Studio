@@ -43,7 +43,11 @@ export function bindChat(getState) {
     $("clearChat").disabled = busy;
     $("editProject").disabled = !getState().canEdit || loaded;
     $("removeProject").disabled = !getState().canEdit || loaded;
-    if (loaded && loadedDevice === "cuda") $("start").disabled = true;
+    if (loaded && loadedDevice === "cuda") {
+      $("start").disabled = true;
+      $("launchHint").textContent = "Unload the GPU chat model before starting a training job.";
+      $("start").title = $("launchHint").textContent;
+    }
     for (const id of ["chatSource", "chatCheckpoint", "chatDevice", "chatSystem", "chatTemperature", "chatTokens", "chatPrompt"]) $(id).disabled = busy;
   }
 

@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import {
-  metricGeometry
+  metricGeometry, preferredMetric, readableConsole
 } from "../../src/hentai_studio/dashboard_static/metrics.js";
 import {
   requestJSON,
@@ -12,6 +12,19 @@ import {
 } from "../../src/hentai_studio/dashboard_static/poller.js";
 
 const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
+
+test("metric defaults prefer loss over metadata and preserve a valid selection", () => {
+  const keys = ["resumed_from_step", "total_steps", "loss", "gpu_usage_pct"];
+  assert.equal(preferredMetric(keys), "loss");
+  assert.equal(preferredMetric(keys, "gpu_usage_pct"), "gpu_usage_pct");
+  assert.equal(preferredMetric(keys, "missing"), "loss");
+  assert.equal(preferredMetric([]), undefined);
+});
+
+test("terminal progress redraws collapse without swallowing warnings or CRLF logs", () => {
+  assert.equal(readableConsole("start\r\n\x1b[32mstep 1\rstep 2\rstep 3\x1b[0m\nWARNING: check data\n"), "start\nstep 3\nWARNING: check data\n");
+  assert.equal(readableConsole("\rprogress 1\rprogress 2\r"), "progress 2");
+});
 
 test("arbitrary metrics use actual step positions and discard invalid values", () => {
   const result = metricGeometry([{

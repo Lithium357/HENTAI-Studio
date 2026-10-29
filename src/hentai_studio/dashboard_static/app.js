@@ -14,14 +14,15 @@ import {
   $,
   renderControls,
   renderWorkspace,
-  renderDetails,
-  plot
+  renderDetails
 } from "./views.js";
+import { bindOutputTools } from "./output-ui.js";
 import {
   bindProjectEditor
 } from "./editor.js";
 
 const state = new WorkspaceState();
+bindOutputTools();
 const chat = bindChat(() => state);
 let controller;
 const callbacks = {
@@ -145,11 +146,11 @@ $("start").onclick = () => {
 };
 $("stop").onclick = () => {
   if (!state.canStop) return;
-  const job = state.jobId;
+  const job = state.stopTarget.id;
   void mutate(() => api.jobs.stop(job));
 };
 $("refresh").onclick = () => poller.start();
-$("metric").onchange = plot;
+$("jobFilter").oninput = render;
 document.addEventListener("visibilitychange", () => {
   if (document.hidden) {
     controller?.abort();

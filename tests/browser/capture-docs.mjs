@@ -46,6 +46,9 @@ const rows = Array.from({
 }, (_, i) => ({
   step: (i + 1) * 10,
   loss: +(2.4 * Math.exp(-i / 23) + .19 + .018 * Math.sin(i * 1.7)).toFixed(4),
+  progress_percent: +((i + 1) / 1.2).toFixed(1),
+  seconds_per_step: 1.8,
+  gpu_vram_mb: 11240,
   accuracy: +(.92 - .65 * Math.exp(-i / 30)).toFixed(4)
 }));
 const log = ['[studio] Started train in /home/you/projects/demo-trainer', '[trainer] Checkpoints and metrics → STUDIO_OUTPUT_DIR', '', ...rows.slice(-9).map(row => `step=${row.step}  loss=${row.loss.toFixed(4)}  accuracy=${row.accuracy.toFixed(4)}`), '', '[trainer] Checkpoint saved: checkpoints/latest.json'].join('\n');
@@ -84,6 +87,7 @@ try {
     reducedMotion: 'reduce'
   });
   const page = await context.newPage();
+  await page.clock.install({ time: new Date('2026-10-20T14:24:00Z') });
   const errors = [];
   page.on('pageerror', error => errors.push(error.message));
   await page.route('**/api/**', async route => {

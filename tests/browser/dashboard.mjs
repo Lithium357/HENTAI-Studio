@@ -68,10 +68,16 @@ try {
   assert.equal(await page.locator("#projectName example").count(), 0);
   await page.locator("#start").click();
   await page.waitForFunction(() => document.getElementById("jobState").textContent.includes("succeeded"));
+  await page.waitForFunction(() => document.getElementById("metricLine").getAttribute("d"));
   assert.ok(await page.locator("#metricLine").getAttribute("d"));
   assert.ok(await page.locator("#metricArea").getAttribute("d"));
   assert.equal(await page.locator("#chartEmpty").isVisible(), false);
   assert.notEqual(await page.locator("#metricValue").textContent(), "—");
+  assert.equal(await page.locator("#metric").inputValue(), "loss");
+  assert.match(await page.locator("#axisStart").textContent(), /Step/);
+  await page.locator("#metricScrubber").focus();
+  await page.locator("#metricScrubber").press("Home");
+  assert.match(await page.locator("#pointReadout").textContent(), /Step 1/);
   assert.equal(await page.locator("#completedCount").textContent(), "1");
   // Polling must keep keyboard users on their selected history button.
   await page.locator(".job-item.selected").focus();
@@ -91,12 +97,33 @@ try {
   await page.locator("#start").click();
   await page.waitForFunction(() => document.getElementById("jobState").textContent.includes("succeeded") && document.getElementById("logs").textContent.includes("from step 5"));
   assert.match(await page.locator("#resumeSource").textContent(), /Resume source/);
+  await page.locator("#resumeSource").click();
+  await page.waitForFunction(() => document.getElementById("metric").value === "accuracy");
+  await page.reload();
+  await page.waitForFunction(() => document.querySelectorAll(".job-item").length === 2);
+  await page.locator(".job-item").last().click();
+  await page.waitForFunction(() => document.getElementById("metric").value === "accuracy");
+  await page.locator(".project-item").filter({ hasText: "Trainer <example>" }).click();
+  await page.waitForFunction(() => !document.getElementById("start").disabled);
   await page.locator("#command").selectOption("long");
   await page.locator("#start").click();
   await page.waitForFunction(() => document.getElementById("jobState").textContent === "running");
   assert.equal(await page.locator("#start").isDisabled(), true);
+  // The stop toolbar follows the active project job even while inspecting history.
+  const activeId = await page.locator("#jobId").textContent();
+  await page.locator(".job-item").last().click();
+  await page.waitForFunction(() => document.getElementById("jobState").textContent.includes("succeeded"));
+  assert.equal(await page.locator("#stop").isEnabled(), true);
+  assert.ok((await page.locator("#controlTarget").textContent()).includes(activeId.slice(0, 8)));
+  await page.locator("#artifacts").scrollIntoViewIfNeeded();
+  assert.ok(await page.locator("#stop").evaluate(node => {
+    const rect = node.getBoundingClientRect();
+    return rect.top >= 0 && rect.bottom <= innerHeight;
+  }), "Stop stays in the viewport when scrolling outputs");
   await page.locator("#stop").click();
+  await page.locator(".job-item").first().click();
   await page.waitForFunction(() => document.getElementById("jobState").textContent.includes("stopped"));
+  assert.match(await page.locator("#controlHint").textContent(), /No active process/);
   await page.reload();
   await page.waitForFunction(() => document.querySelectorAll(".job-item").length === 3);
   if (process.env.STUDIO_SCREENSHOT) await page.screenshot({
@@ -144,6 +171,29 @@ try {
   assert.match(await page.locator("#jobState").textContent(), /stopped/);
   assert.ok((await page.locator("#logs").textContent()).length > 0);
   await page.unroute("**/metrics");
+  await page.route("**/metrics", route => route.fulfill({ json: { items: [], truncated: false } }));
+  await page.locator("#refresh").click();
+  await page.waitForFunction(() => document.getElementById("chartEmpty").textContent === "No metrics found for this job.");
+  await page.unroute("**/metrics");
+  await page.route("**/logs?*", route => route.fulfill({ json: { text: "start\r\nstep 1\rstep 2\rstep 3\nWARNING: demo warning\n", size: 80 } }));
+  await page.locator("#refresh").click();
+  await page.waitForFunction(() => document.getElementById("logs").textContent.includes("WARNING: demo warning"));
+  assert.doesNotMatch(await page.locator("#logs").textContent(), /step 1|step 2/);
+  await page.locator("#logFilter").fill("warning");
+  assert.equal((await page.locator("#logs").textContent()).trim(), "WARNING: demo warning");
+  await page.locator("#logFilter").fill("");
+  await page.locator("#expandLogs").click();
+  assert.equal(await page.locator("#expandLogs").getAttribute("aria-expanded"), "true");
+  await page.unroute("**/logs?*");
+  await page.locator("#artifactFilter").fill("checkpoint");
+  assert.equal(await page.locator("#artifacts a").count(), 1);
+  await page.locator("#artifactFilter").fill("no-such-file");
+  assert.match(await page.locator("#artifacts").textContent(), /No matching/);
+  await page.locator("#artifactFilter").fill("");
+  await page.locator("#jobFilter").fill("no-such-run");
+  assert.equal(await page.locator(".job-item").count(), 0);
+  await page.locator("#jobFilter").fill("");
+  assert.equal(await page.locator(".job-item").count(), 3);
   await page.setViewportSize({
     width: 390,
     height: 844
