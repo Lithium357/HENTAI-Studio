@@ -42,7 +42,7 @@ Register this checkout in Studio and select **Scratch LLM training**:
 
 This tiny example demonstrates the workflow; a few illustrative records do not produce a useful language model. Bring your own architecture configuration, tokenizer corpus, and training dataset for real work. Model dimensions and context size must fit your hardware and configured sequence length.
 
-Select **Run command**. The profile generates the project's `train` command, records a configuration snapshot, and writes numeric training logs to `metrics.jsonl`. Jobs use Studio's existing process supervision, console, artifacts, stop, and resume controls.
+In **Launch a run**, select **New run** and click **Start new run**. The profile generates the project's `train` command, records a configuration snapshot, and writes numeric training logs to `metrics.jsonl`. Jobs use Studio's existing process supervision, console, artifacts, stop, and resume controls.
 
 The runner initializes fresh weights with `AutoModelForCausalLM.from_config`. It reads no pretrained weights. Tokenizer vocabulary size is used for the model's embedding vocabulary. Precision, batch size, gradient accumulation, learning rate, epoch/step budget, checkpoint interval, seed, and gradient checkpointing are configurable. `max_steps: -1` uses the epoch budget; positive values select an optimizer-step budget.
 
@@ -61,7 +61,7 @@ For messages, Studio uses the tokenizer's chat template if present. Otherwise bo
 
 A successful job saves its final model and tokenizer in `output/model`. Intermediate `checkpoint-N` directories contain training state and a tokenizer. They appear with the other output artifacts.
 
-To resume, select a finished job, enable **Resume from selected job**, and run `train`. The runner uses the highest-numbered checkpoint containing `trainer_state.json` and restores Trainer state. Keep the model configuration, tokenizer, and dataset consistent with the original job. Increase the training budget if more steps are needed. A job stopped before its first checkpoint cannot be resumed. Stop terminates the trainer and does not request a final checkpoint.
+To resume, select a finished job, expand **Launch a run**, select **Resume run**, choose `train`, and click **Resume run**. The named source receives the resume request. The runner uses the highest-numbered checkpoint containing `trainer_state.json` and restores Trainer state. Keep the model configuration, tokenizer, and dataset consistent with the original job. Increase the training budget if more steps are needed. A job stopped before its first checkpoint cannot be resumed. Stop terminates the trainer and does not request a final checkpoint.
 
 ## Test responses locally
 

@@ -96,3 +96,35 @@ test("workspace issues disable registration mutations without losing history", (
   }]);
   assert.equal(state.canStop, true);
 });
+
+test("stop targets the active project job while an older run is selected", () => {
+  const state = ready();
+  state.setJobs([
+    { id: "active", project_id: "first", state: "running" },
+    { id: "history", project_id: "first", state: "stopped" },
+  ]);
+  state.selectJob("history");
+  assert.equal(state.stopTarget.id, "active");
+  assert.equal(state.canStop, true);
+  assert.match(state.startReason, /active job/);
+  state.jobs[0].state = "stopping";
+  assert.equal(state.canStop, false);
+  state.selectProject(null);
+  state.setJobs([{ id: "history", state: "stopped" }, { id: "other", state: "running" }]);
+  state.selectJob("history");
+  assert.equal(state.canStop, false, "All jobs must never stop an unrelated active job");
+});
+
+test("resume launch requires a valid source and resets when selection changes", () => {
+  const state = ready();
+  state.launchMode = "resume";
+  assert.equal(state.canLaunch, false);
+  state.setJobs([{ id: "finished", project_id: "first", state: "stopped" }, { id: "other", project_id: "first", state: "succeeded" }]);
+  assert.equal(state.canLaunch, true);
+  state.selectJob("other");
+  assert.equal(state.launchMode, "new");
+  state.launchMode = "resume";
+  state.selectProject("second");
+  assert.equal(state.launchMode, "new");
+  assert.equal(state.canLaunch, false);
+});

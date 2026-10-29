@@ -188,7 +188,7 @@ h2 {
 }
 
 .topbar {
-  height: 80px;
+  height: 60px;
   padding: 0 30px;
   display: flex;
   align-items: center;
@@ -292,7 +292,7 @@ h2 {
 .layout {
   display: grid;
   grid-template-columns: 232px minmax(0, 1fr);
-  min-height: calc(100vh - 80px)
+  min-height: calc(100vh - 60px)
 }
 
 .sidebar {
@@ -408,7 +408,7 @@ h2 {
 }
 
 main {
-  padding: 28px 36px 48px;
+  padding: 20px 28px 40px;
   min-width: 0;
   max-width: 1700px;
   width: 100%;
@@ -418,7 +418,7 @@ main {
 .breadcrumb {
   font-size: 11px;
   color: #7f8390;
-  margin-bottom: 25px;
+  margin-bottom: 12px;
   display: flex;
   gap: 12px
 }
@@ -428,7 +428,7 @@ main {
 }
 
 .project-heading {
-  margin-bottom: 25px;
+  margin-bottom: 16px;
   align-items: flex-start
 }
 
@@ -453,8 +453,8 @@ main {
   border: 1px solid var(--border);
   border-radius: 9px;
   background: var(--surface);
-  margin-bottom: 24px;
-  padding: 18px 0
+  margin-bottom: 12px;
+  padding: 10px 0
 }
 
 .overview>div {
@@ -474,7 +474,7 @@ main {
 
 .overview strong {
   display: block;
-  font-size: 26px;
+  font-size: 20px;
   line-height: 1.2;
   font-weight: 500;
   margin-top: 7px;
@@ -499,33 +499,8 @@ main {
   display: flex;
   align-items: center;
   gap: 20px;
-  margin-bottom: 24px
-}
-
-.launch-caption {
-  display: flex;
-  gap: 11px;
-  align-items: center;
-  margin-right: auto
-}
-
-.launch-caption h2 {
-  font-size: 12px
-}
-
-.launch-caption p {
-  color: var(--muted);
-  font-size: 10px;
-  margin-top: 2px
-}
-
-.panel-icon {
-  font-size: 20px;
-  color: var(--accent);
-  border: 1px solid #493a30;
-  background: #2a231f;
-  border-radius: 7px;
-  padding: 5px 10px
+  margin-bottom: 8px;
+  padding: 12px 16px
 }
 
 .launch label {
@@ -552,7 +527,7 @@ main {
 .job-layout {
   display: grid;
   grid-template-columns: 242px minmax(0, 1fr);
-  gap: 20px;
+  gap: 16px;
   align-items: start
 }
 
@@ -695,7 +670,7 @@ main {
 }
 
 .job-meta code {
-  font-size: 10px
+  font-size: 12px
 }
 
 .job-summary .hint {
@@ -802,8 +777,8 @@ pre {
   max-height: 350px;
   min-height: 170px;
   overflow: auto;
-  font-size: 11px;
-  line-height: 1.85;
+  font-size: 12px;
+  line-height: 1.65;
   color: #bfc4cf;
   white-space: pre-wrap;
   overflow-wrap: anywhere;
@@ -1118,11 +1093,6 @@ input {
     gap: 14px
   }
 
-  .launch-caption {
-    width: 100%;
-    margin-bottom: 2px
-  }
-
   .launch .primary {
     margin-left: auto
   }
@@ -1367,10 +1337,6 @@ input {
     padding: 7px 10px
   }
 
-  .launch-caption {
-    display: none
-  }
-
   .job-layout {
     gap: 16px
   }
@@ -1498,6 +1464,166 @@ input {
 }
 
 /* Scratch LLM workspace and local checkpoint chat. */
+.run-controls {
+  position: sticky;
+  top: 8px;
+  z-index: 5;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 12px 16px;
+  margin-bottom: 12px;
+  border: 1px solid #49404a;
+  border-radius: 8px;
+  background: #202126;
+  box-shadow: 0 4px 16px #0003;
+}
+.project-heading .eyebrow { display: none; }
+.project-heading h1 { font-size: 26px; margin-bottom: 5px; }
+.project-heading .actions { padding-top: 0; }
+.overview>div { display: flex; align-items: baseline; gap: 12px; }
+.overview strong { margin: 0; order: -1; }
+.launch label:not(.check) { flex-direction: row; align-items: center; gap: 12px; font-size: 12px; }
+.launch label:not(.check) select { width: 160px; }
+.launch label.check { margin-left: auto; font-size: 12px; }
+.launch .primary { align-self: center; }
+.run-context { display: grid; gap: 3px; min-width: 0; }
+.run-context strong { font-size: 12px; overflow-wrap: anywhere; }
+.run-context .hint { font-size: 12px; }
+button.stop-action { background: #492b30; color: #ffc3c3; border-color: #98505b; min-width: 112px; font-size: 13px; }
+button.stop-action:disabled { opacity: 1; background: #29272b; border-color: #514149; color: #b9a6ad; }
+button.stop-action.available:hover { background: #71333e; border-color: #ed8f9f; }
+.launch-hint { margin: 0 0 14px; font-size: 12px; }
+.launch-hint:empty { margin-bottom: 12px; }
+.history-filter { margin: 12px 4px; }
+.history-filter input, .file-filter input, .console-search input { min-height: 34px; font-size: 12px; padding: 6px 10px; }
+.job-item small, .job-project { font-size: 12px; }
+.job-item .job-history-meta { font: 11px/1.5 Consolas, monospace; color: #a7abb7; margin-top: 3px; }
+.job-summary { padding: 14px 18px; }
+.job-summary .section-head { margin-bottom: 10px; flex-wrap: wrap; }
+.job-summary h2 { font-size: 17px; }
+.job-summary .hint { font-size: 12px; margin-top: 7px; }
+.lineage { color: var(--accent); font-size: 12px; min-height: 28px; padding: 4px 0; white-space: normal; text-align: left; margin-top: 4px; }
+.chart-container { margin-left: 62px; }
+.chart-y { position: absolute; left: -62px; top: 8px; bottom: 8px; display: flex; flex-direction: column; justify-content: space-between; width: 54px; text-align: right; font: 11px Consolas, monospace; color: #b4b8c3; }
+.chart-x { display: flex; justify-content: space-between; margin: 7px 0 0 62px; color: #b4b8c3; font: 11px Consolas, monospace; }
+.chart-inspect { display: grid; grid-template-columns: minmax(60px, 1fr) auto; align-items: center; gap: 14px; margin: 10px 0 0; }
+.chart-inspect input { padding: 0; min-height: 24px; accent-color: var(--accent); }
+.chart-inspect output { font: 11px Consolas, monospace; color: #c5c8d0; }
+#metricSummary { font-size: 11px; }
+.console-actions { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.console-actions .check { margin: 0 8px 0 0; font-size: 12px; }
+.console-actions button { min-height: 30px; padding: 4px 7px; font-size: 12px; }
+.console-search { display: flex; gap: 12px; align-items: center; padding: 10px 16px; border-bottom: 1px solid var(--border); }
+.console-search label { flex: 1; margin: 0; }
+.console-search .hint { max-width: 42%; font-size: 11px; }
+#logs.expanded { max-height: 70vh; min-height: 400px; }
+.file-filter { margin: 14px 0 0; }
+#artifacts { max-height: 440px; overflow: auto; }
+#artifacts .file-group { color: var(--accent); font: 12px Consolas, monospace; padding: 14px 0 4px; overflow-wrap: anywhere; }
+#artifacts a { padding: 8px 0; font-size: 12px; }
+#artifacts .file-size { font-size: 11px; }
+.status { font-size: 11px; }
+@media(min-width:1600px) { main { padding: 24px 36px; } }
+@media(max-width:950px) {
+  .launch { flex-wrap: wrap; gap: 12px; }
+  .console-panel>.section-head { flex-wrap: wrap; }
+  .chart-inspect { grid-template-columns: 1fr; gap: 4px; }
+}
+@media(max-width:650px) {
+  .topbar { height: 56px; }
+  main { padding: 16px; }
+  .project-heading h1 { font-size: 23px; }
+  .project-heading code { font-size: 12px; }
+  .overview span { font-size: 11px; }
+  .overview>div { padding: 0 10px; }
+  .overview>div { display: block; }
+  .overview strong { margin-top: 4px; }
+  .overview strong { font-size: 20px; }
+  .run-controls { top: 4px; padding: 10px; gap: 10px; }
+  .run-context strong, .run-context .hint { font-size: 11px; }
+  button.stop-action { min-width: 100px; padding: 8px; }
+  .launch label:not(.check) { width: auto; flex: 1; }
+  .launch label:not(.check) { flex-direction: column; align-items: stretch; gap: 5px; }
+  .launch label:not(.check) select { width: 100%; }
+  .launch .check { width: 100%; font-size: 12px; order: 3; }
+  .history-filter { margin: 10px 4px; }
+  .job-meta code { font-size: 11px; }
+  .console-search { align-items: stretch; flex-direction: column; gap: 6px; }
+  .console-search .hint { max-width: 100%; }
+  .console-actions { gap: 2px; }
+  .chart-container { margin-left: 50px; }
+  .chart-y { left: -50px; width: 44px; font-size: 10px; }
+  .chart-x { margin-left: 50px; font-size: 10px; }
+  .job-summary .section-head { gap: 8px; }
+  .job-summary h2 { font-size: 16px; }
+  .metric-select { max-width: 150px; }
+}
+
+/* Run inspection keeps task navigation separate from training/chat navigation. */
+.launch-disclosure { padding: 10px 16px; margin-bottom: 14px; }
+.launch-disclosure>summary { cursor: pointer; font-size: 12px; font-weight: 600; color: #c7cad3; }
+.launch-disclosure>summary .hint { margin-left: 12px; font-weight: 400; font-size: 12px; }
+.launch-disclosure .launch { margin: 12px 0 0; padding: 0; background: transparent; }
+.launch-disclosure .launch-hint { margin: 10px 0 0; }
+.launch-disclosure .launch-hint:empty { margin: 0; }
+.inspection-tabs { display: flex; gap: 8px; border-bottom: 1px solid var(--border); background: #101114; padding: 0 0 8px; }
+.inspection-tabs [role=tab] { background: transparent; border-color: transparent; color: var(--muted); font-size: 13px; padding: 8px 16px; }
+.inspection-tabs [aria-selected=true] { color: var(--accent); background: #29231f; border-color: #4c3b30; }
+#overviewPanel { display: grid; gap: 14px; }
+.telemetry-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
+.signal-list { margin: 16px 0 0; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); column-gap: 20px; row-gap: 15px; }
+.signal-list div { min-width: 0; }
+.signal-list dt { font-size: 12px; color: var(--muted); margin-bottom: 3px; }
+.signal-list dd { margin: 0; font: 14px/1.5 Consolas, monospace; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+.signal-list .unavailable { color: #858a96; }
+.measurement-context { font-size: 12px; }
+.launch { display: grid; grid-template-columns: auto minmax(200px, 1fr) auto; gap: 10px 24px; align-items: center; }
+.launch-mode { display: flex; gap: 0; padding: 3px; margin: 0; min-width: 0; border: 1px solid var(--border); border-radius: 7px; background: #121418; }
+.launch .launch-mode label { margin: 0; padding: 6px 10px; min-width: 0; gap: 6px; border-radius: 5px; cursor: pointer; font-size: 12px; }
+.launch .launch-mode label:has(input:checked) { color: var(--accent); background: #30271f; }
+.launch .launch-mode label:has(input:disabled) { cursor: default; color: #828793; }
+.launch-mode input[type=radio] { width: 14px; height: 14px; min-height: 0; margin: 0; padding: 0; accent-color: var(--accent); }
+.launch label:not(.check) { min-width: 0; }
+.launch-source { grid-column: 1 / -1; font-size: 12px; line-height: 1.6; padding: 8px 12px; color: #eac5ad; background: #2b251f; border-left: 2px solid var(--accent); overflow-wrap: anywhere; }
+.launch-definition { grid-column: 1 / -1; font-size: 12px; border-top: 1px solid var(--border); padding-top: 8px; }
+.launch-definition summary { width: fit-content; color: #b7bac4; cursor: pointer; }
+.launch-definition dl { margin: 12px 0; display: grid; gap: 10px; }
+.launch-definition dl>div { display: grid; grid-template-columns: 140px minmax(0, 1fr); gap: 12px; }
+.launch-definition dt { color: var(--muted); }
+.launch-definition dd { margin: 0; font: 12px/1.6 Consolas, monospace; overflow-wrap: anywhere; }
+.launch-definition pre { min-height: 0; max-height: 220px; padding: 8px 12px; border-radius: 5px; }
+.launch-definition .hint { font-size: 12px; }
+@media(min-width:1000px) {
+  .history { position: sticky; top: 90px; }
+  #jobs { max-height: calc(100vh - 280px); overflow: auto; }
+  .job-summary .eyebrow { display: none; }
+  .job-summary { padding: 12px 18px; }
+  .job-summary .section-head { margin-bottom: 6px; }
+  #inspectionTabs { position: sticky; top: 90px; z-index: 4; }
+  #consolePanel #logs { min-height: 320px; height: calc(100vh - 540px); max-height: 900px; }
+  #consolePanel #logs.expanded { height: 75vh; max-height: 75vh; }
+  #filesPanel #artifacts { max-height: calc(100vh - 580px); min-height: 240px; }
+}
+@media(max-width:999px) {
+  .launch { grid-template-columns: minmax(0, 1fr) auto; gap: 10px; }
+  .launch-mode { grid-column: 1 / -1; width: fit-content; }
+  .telemetry-grid { grid-template-columns: minmax(0, 1fr); }
+  .launch-definition dl>div { grid-template-columns: minmax(0, 1fr); gap: 4px; }
+}
+
+@media(min-width:1400px) {
+  #overviewPanel { grid-template-columns: minmax(0, 1fr) 260px; align-items: start; }
+  .metrics-panel { min-width: 0; }
+  .telemetry-grid { grid-template-columns: minmax(0, 1fr); }
+  .telemetry-panel { padding: 16px; }
+  .signal-list { column-gap: 12px; row-gap: 12px; }
+  .signal-list dd { font-size: 13px; }
+  .measurement-context { grid-column: 1 / -1; }
+  .chart-inspect { grid-template-columns: minmax(0, 1fr); gap: 5px; }
+}
+
 .llm-fields {
   border: 1px solid var(--border);
   border-radius: 8px;

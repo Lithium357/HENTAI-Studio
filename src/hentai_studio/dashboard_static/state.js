@@ -1,5 +1,5 @@
 // UI state has no DOM or network dependencies; selections survive polling.
-export const isBusy = job => !!job && (["starting", "running", "stopping"].includes(job.state) || job.has_live_processes);
+export const isBusy = job => !!job && (["starting", "running", "stopping"].includes(job.state) || !!job.has_live_processes);
 
 export class WorkspaceState {
   constructor() {
@@ -7,6 +7,7 @@ export class WorkspaceState {
     this.jobs = [];
     this.projectId = null;
     this.jobId = null;
+    this.launchMode = "new";
     this.commands = new Map();
     this.jobSelections = new Map();
     this.revision = 0;
@@ -33,6 +34,7 @@ export class WorkspaceState {
     if (this.projectId === id) return;
     this.jobSelections.set(this.projectId, this.jobId);
     this.projectId = id;
+    this.launchMode = "new";
     this.jobId = this.jobSelections.get(id) || null;
     this.jobs = [];
     this.loading = true;
@@ -40,6 +42,7 @@ export class WorkspaceState {
   }
   selectJob(id) {
     this.jobId = id;
+    this.launchMode = "new";
     this.revision++;
   }
   setProjects(projects) {
@@ -57,11 +60,27 @@ export class WorkspaceState {
   get canStart() {
     return !this.blocked && !this.issues.length && !!this.project && !this.jobs.some(isBusy);
   }
+  get canLaunch() {
+    return this.launchMode === "resume" ? this.canResume : this.canStart;
+  }
   get canEdit() {
     return this.canStart;
   }
   get canStop() {
-    return !this.blocked && isBusy(this.job) && this.job.state !== "stopping";
+    return !this.blocked && isBusy(this.stopTarget) && this.stopTarget.state !== "stopping";
+  }
+  get stopTarget() {
+    // Inspecting an older run must not hide the current project's stop action.
+    return isBusy(this.job) ? this.job : this.projectId ? this.jobs.find(isBusy) || this.job : this.job;
+  }
+  get startReason() {
+    if (!this.connected) return "Reconnect to Studio to run commands.";
+    if (this.loading) return "Loading project jobs…";
+    if (this.busy) return "Applying your action…";
+    if (this.issues.length) return "Repair the workspace issues shown above before starting a job.";
+    if (!this.project) return "Select a registered project to run a command.";
+    if (this.jobs.some(isBusy)) return "This project has an active job. Stop it or wait for it to finish.";
+    return "";
   }
   get canResume() {
     return this.canStart && !!this.job && this.job.project_id === this.projectId && !isBusy(this.job);

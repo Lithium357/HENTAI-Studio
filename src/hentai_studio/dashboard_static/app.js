@@ -14,14 +14,17 @@ import {
   $,
   renderControls,
   renderWorkspace,
-  renderDetails,
-  plot
+  renderDetails
 } from "./views.js";
+import { bindOutputTools } from "./output-ui.js";
+import { bindLaunch } from "./launch.js";
 import {
   bindProjectEditor
 } from "./editor.js";
 
 const state = new WorkspaceState();
+bindLaunch(() => state, render);
+bindOutputTools();
 const chat = bindChat(() => state);
 let controller;
 const callbacks = {
@@ -42,7 +45,7 @@ function render() {
 
 function changed() {
   controller?.abort();
-  $("resume").checked = false;
+  state.launchMode = "new";
   $("jobDetail").hidden = true;
   render();
   poller.start();
@@ -127,29 +130,32 @@ $("removeProject").onclick = () => {
       state.selectProject(null);
     });
 };
-$("command").onchange = () => state.commands.set(state.projectId, $("command").value);
+$("command").onchange = () => {
+  state.commands.set(state.projectId, $("command").value);
+  render();
+};
 $("start").onclick = () => {
-  if (!state.canStart) return;
+  if (!state.canLaunch) return;
   const project = state.projectId,
     command = state.command,
-    resume = $("resume").checked ? state.jobId : null;
+    resume = state.launchMode === "resume" ? state.jobId : null;
   void mutate(async () => {
     const job = await api.jobs.start(project, command, resume);
     if (state.projectId === project) {
       state.jobs.unshift(job);
       state.jobId = job.id;
     }
-    $("resume").checked = false;
+    state.launchMode = "new";
     $("jobDetail").hidden = true;
   });
 };
 $("stop").onclick = () => {
   if (!state.canStop) return;
-  const job = state.jobId;
+  const job = state.stopTarget.id;
   void mutate(() => api.jobs.stop(job));
 };
 $("refresh").onclick = () => poller.start();
-$("metric").onchange = plot;
+$("jobFilter").oninput = render;
 document.addEventListener("visibilitychange", () => {
   if (document.hidden) {
     controller?.abort();

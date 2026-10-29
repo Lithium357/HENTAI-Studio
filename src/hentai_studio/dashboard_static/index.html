@@ -185,43 +185,37 @@
             </div>
             <div>
               <span>
-                Completed jobs
+                Finished jobs
               </span>
               <strong id="completedCount">
                 0
               </strong>
             </div>
           </div>
-          <div class="launch panel" id="launchPanel">
-            <div class="launch-caption">
-              <span class="panel-icon" aria-hidden="true">
-                ↗
-              </span>
-              <div>
-                <h2>
-                  Launch a job
-                </h2>
-                <p>
-                  Your code, your environment.
-                </p>
-              </div>
-            </div>
+          <section id="runControls" class="run-controls" aria-label="Job controls">
+            <div class="run-context"><strong id="controlTarget">No job selected</strong><span id="controlHint" class="hint">Select a job to inspect its state.</span></div>
+            <button id="stop" class="stop-action" disabled aria-describedby="controlHint"><span aria-hidden="true">■</span> Stop job</button>
+          </section>
+          <details class="launch-disclosure panel" id="launchPanel" open>
+            <summary>Launch a run <span id="launchAvailability" class="hint"></span></summary>
+            <div class="launch" aria-label="Launch a run">
+            <fieldset class="launch-mode"><legend class="sr-only">Run mode</legend><label><input id="modeNew" type="radio" name="launchMode" value="new" checked>New run</label><label><input id="modeResume" type="radio" name="launchMode" value="resume" aria-describedby="launchSource">Resume run</label></fieldset>
             <label>
               Command
               <select id="command">
               </select>
             </label>
-            <label class="check">
-              <input id="resume" type="checkbox">
-              Resume from selected job
-            </label>
             <button id="start" class="primary">
-              Run command
+              Start new run
               <span aria-hidden="true">
                 ↗
               </span>
             </button>
-          </div>
+            <p id="launchSource" class="launch-source"></p>
+            <details id="launchDefinition" class="launch-definition"><summary>Inspect launch definition</summary><dl><div><dt>Working directory</dt><dd id="launchDirectory"></dd></div><div><dt>Executable</dt><dd id="launchExecutable"></dd></div><div><dt>Argument array</dt><dd><pre id="launchArguments"></pre></dd></div></dl><p id="launchSubstitutions" class="hint"></p></details>
+            </div>
+          <p id="launchHint" class="hint launch-hint" role="status"></p>
+          </details>
           <section id="chatPanel" class="panel chat-panel" aria-label="Local model chat tester" hidden>
             <div class="section-head"><div><p class="eyebrow">LOCAL CHECKPOINT PLAYGROUND</p><h2>Talk to your scratch model</h2><p class="panel-description">Load saved weights explicitly. Prompts stay on this machine.</p></div><span id="chatStatus" role="status" class="status">No model loaded</span></div>
             <div class="chat-load-grid">
@@ -249,6 +243,7 @@
               <p class="panel-description">
                 Most recent first
               </p>
+              <label class="history-filter"><span class="sr-only">Filter job history</span><input id="jobFilter" type="search" placeholder="Filter command, state, ID…"></label>
               <div id="jobs">
               </div>
             </section>
@@ -274,9 +269,7 @@
                       <h2 id="jobTitle">
                       </h2>
                     </div>
-                    <button id="stop" class="danger">
-                      Stop job
-                    </button>
+                    <code id="jobDuration"></code>
                   </div>
                   <div class="job-meta">
                     <p id="jobState" class="status" role="status">
@@ -288,9 +281,14 @@
                   </p>
                   <p id="jobTiming" class="hint">
                   </p>
-                  <p id="resumeSource" class="hint">
-                  </p>
+                  <button id="resumeSource" class="subtle lineage" hidden></button>
                 </div>
+                <div id="inspectionTabs" class="inspection-tabs" role="tablist" aria-label="Run inspection">
+                  <button id="overviewTab" role="tab" aria-selected="true" aria-controls="overviewPanel">Overview</button>
+                  <button id="consoleTab" role="tab" aria-selected="false" aria-controls="consolePanel" tabindex="-1">Console</button>
+                  <button id="filesTab" role="tab" aria-selected="false" aria-controls="filesPanel" tabindex="-1">Files</button>
+                </div>
+                <section id="overviewPanel" role="tabpanel" aria-labelledby="overviewTab" tabindex="0">
                 <section class="panel metrics-panel">
                   <div class="section-head">
                     <div>
@@ -318,6 +316,7 @@
                     </span>
                   </div>
                   <div class="chart-container">
+                    <div class="chart-y" aria-hidden="true"><span id="axisMax">—</span><span id="axisMin">—</span></div>
                     <svg id="metricChart" viewBox="0 0 600 150" preserveAspectRatio="none" role="img" aria-label="Selected training metric">
                       <defs>
                         <linearGradient id="chartFill" x1="0" y1="0" x2="0" y2="1">
@@ -327,16 +326,25 @@
                       </defs>
                       <path id="metricArea" fill="url(#chartFill)"/>
                       <path id="metricLine" fill="none" stroke="currentColor" stroke-width="2" vector-effect="non-scaling-stroke"/>
+                      <circle id="metricPoint" r="3" fill="currentColor" hidden/>
                     </svg>
                     <div id="chartEmpty">
                       Metrics will appear as your trainer writes them.
                     </div>
                   </div>
+                  <div class="chart-x"><span id="axisStart"></span><span id="axisEnd"></span></div>
+                  <label class="chart-inspect"><span class="sr-only">Inspect metric point</span><input id="metricScrubber" type="range" min="0" max="0" value="0" disabled><output id="pointReadout">No points to inspect</output></label>
                   <p id="metricSummary" class="hint">
                     No metrics yet.
                   </p>
                 </section>
-                <section class="panel console-panel">
+                <div class="telemetry-grid">
+                  <section class="panel telemetry-panel" aria-labelledby="performanceTitle"><h2 id="performanceTitle">Performance</h2><p class="panel-description">Latest recorded progress and throughput</p><dl id="performanceSignals" class="signal-list"></dl></section>
+                  <section class="panel telemetry-panel" aria-labelledby="hardwareTitle"><h2 id="hardwareTitle">Hardware</h2><p class="panel-description">Trainer-reported resource measurements</p><dl id="hardwareSignals" class="signal-list"></dl></section>
+                </div>
+                <p id="measurementContext" class="hint measurement-context"></p>
+                </section>
+                <section id="consolePanel" class="panel console-panel" role="tabpanel" aria-labelledby="consoleTab" tabindex="0" hidden>
                   <div class="section-head">
                     <h2>
                       <span class="console-symbol" aria-hidden="true">
@@ -344,14 +352,13 @@
                       </span>
                       Console
                     </h2>
-                    <button id="refresh" class="subtle">
-                      ↻ Refresh
-                    </button>
+                    <div class="console-actions"><label class="check"><input id="followLogs" type="checkbox" checked>Follow</label><button id="copyLogs" class="subtle">Copy</button><button id="expandLogs" class="subtle" aria-expanded="false">Expand</button><button id="refresh" class="subtle">↻ Refresh</button></div>
                   </div>
+                  <div class="console-search"><label><span class="sr-only">Filter console lines</span><input id="logFilter" type="search" placeholder="Filter console lines…"></label><span id="logInfo" class="hint" role="status"></span></div>
                   <pre id="logs" tabindex="0" aria-label="Job console">
                   </pre>
                 </section>
-                <section class="panel artifacts-panel">
+                <section id="filesPanel" class="panel artifacts-panel" role="tabpanel" aria-labelledby="filesTab" tabindex="0" hidden>
                   <div class="section-head">
                     <div>
                       <h2>
@@ -365,6 +372,7 @@
                       DOWNLOAD
                     </span>
                   </div>
+                  <label class="file-filter"><span class="sr-only">Filter output files</span><input id="artifactFilter" type="search" placeholder="Filter output paths…"></label>
                   <ul id="artifacts">
                   </ul>
                 </section>
