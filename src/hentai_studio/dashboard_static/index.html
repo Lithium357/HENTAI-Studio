@@ -160,7 +160,11 @@
               </button>
             </div>
           </div>
-          <div class="overview" aria-label="Workspace summary">
+          <div id="llmTabs" class="workspace-tabs" role="tablist" aria-label="Project workspace" hidden>
+            <button id="jobsTab" role="tab" aria-controls="jobWorkspace" aria-selected="true">Training jobs</button>
+            <button id="chatTab" role="tab" aria-controls="chatPanel" aria-selected="false">Chat tester</button>
+          </div>
+          <div class="overview" id="overviewSummary" aria-label="Workspace summary">
             <div>
               <span id="scopeLabel">
                 Registered projects
@@ -218,7 +222,21 @@
               </span>
             </button>
           </div>
-          <div class="job-layout">
+          <section id="chatPanel" class="panel chat-panel" aria-label="Local model chat tester" hidden>
+            <div class="section-head"><div><p class="eyebrow">LOCAL CHECKPOINT PLAYGROUND</p><h2>Talk to your scratch model</h2><p class="panel-description">Load saved weights explicitly. Prompts stay on this machine.</p></div><span id="chatStatus" role="status" class="status">No model loaded</span></div>
+            <div class="chat-load-grid">
+              <label>Checkpoint source<select id="chatSource"><option value="job">Selected job output</option><option value="path">Local directory</option></select></label>
+              <label>Checkpoint directory<input id="chatCheckpoint" value="model" placeholder="model or checkpoint-100"></label>
+              <label>Device<select id="chatDevice"><option value="cpu">CPU</option><option value="cuda">GPU (CUDA / ROCm)</option></select></label>
+            </div>
+            <p id="chatSourceHint" class="hint"></p>
+            <div class="actions chat-load-actions"><button id="loadChat" class="primary">Load checkpoint</button><button id="unloadChat">Unload model</button></div>
+            <details class="advanced chat-settings"><summary>Prompt &amp; generation settings</summary><label>System prompt<textarea id="chatSystem" rows="2" placeholder="Optional instructions for this conversation"></textarea></label><div class="form-grid"><label>Temperature<input id="chatTemperature" type="number" min="0" max="2" step="0.05" value="0.7"></label><label>Max new tokens<input id="chatTokens" type="number" min="1" max="2048" value="128"></label></div></details>
+            <div id="chatMessages" class="chat-messages" role="log" aria-label="Conversation" aria-live="polite"><p class="chat-empty">Your model’s responses will appear here. Load a checkpoint and send a prompt to begin.</p></div>
+            <p id="chatError" class="error" role="alert"></p>
+            <form id="chatForm" class="chat-compose"><label><span class="sr-only">Message</span><textarea id="chatPrompt" rows="3" maxlength="8192" required placeholder="Test a prompt with your model…"></textarea></label><div class="section-head"><span class="hint">Conversations are kept only in this tab’s memory.</span><div class="actions"><button id="clearChat" type="button">Clear chat</button><button id="sendChat" type="submit" class="primary">Send prompt ↗</button></div></div></form>
+          </section>
+          <div class="job-layout" id="jobWorkspace">
             <section class="panel history">
               <div class="section-head">
                 <h2>
@@ -374,6 +392,7 @@
         <p class="editor-intro">
           Connect your trainer. Studio runs commands in your project’s directory and keeps each job’s outputs together.
         </p>
+        <label>Project type<select id="fieldType"><option value="generic">External command project</option><option value="llm">Scratch LLM training</option></select></label>
         <div class="form-grid">
           <label>
             Display name
@@ -391,7 +410,28 @@
             Use an absolute path on the machine running Studio.
           </span>
         </label>
-        <label>
+        <fieldset id="llmFields" class="llm-fields" hidden>
+          <legend>Scratch model training</legend>
+          <p class="hint">Initialize fresh weights from a local Transformers config. No pretrained weights or remote model APIs are used.</p>
+          <label>Training Python executable<input id="llmPython" required value="python" placeholder="/project/.venv/bin/python"></label>
+          <label>Model configuration directory<input id="llmModel" required placeholder="configs/my-model (contains config.json)"></label>
+          <label>Tokenizer directory<input id="llmTokenizer" required placeholder="tokenizer (local tokenizer files)"></label>
+          <label>Training dataset<input id="llmDataset" required placeholder="data/train.jsonl"></label>
+          <p class="hint">Paths may be relative to the project directory. Dataset records contain text or messages. Install Studio’s optional [llm] extra in the selected Python environment before training.</p>
+          <div class="form-grid">
+            <label>Sequence length<input id="llmLength" type="number" min="16" max="131072" required value="1024"></label>
+            <label>Batch size<input id="llmBatch" type="number" min="1" max="1024" required value="1"></label>
+            <label>Gradient accumulation<input id="llmAccumulation" type="number" min="1" max="65536" required value="8"></label>
+            <label>Learning rate<input id="llmRate" type="number" min="0.000000001" max="1" step="any" required value="0.0003"></label>
+            <label>Epochs<input id="llmEpochs" type="number" min="0.001" max="10000" step="any" required value="1"></label>
+            <label>Max optimizer steps<input id="llmSteps" type="number" min="-1" required value="-1"><span class="hint">-1 uses the epoch count.</span></label>
+            <label>Save checkpoint every N steps<input id="llmSave" type="number" min="1" required value="100"></label>
+            <label>Precision<select id="llmPrecision"><option value="fp32">FP32</option><option value="bf16">BF16</option><option value="fp16">FP16</option></select></label>
+            <label>Random seed<input id="llmSeed" type="number" min="0" max="4294967295" required value="42"></label>
+          </div>
+          <label class="check"><input id="llmGradientCheckpointing" type="checkbox" checked>Gradient checkpointing</label>
+        </fieldset>
+        <label id="commandsField">
           Commands
           <span class="field-note">
             JSON argument arrays
@@ -400,7 +440,7 @@
             {"train": ["python", "train.py"]}
           </textarea>
         </label>
-        <p class="hint command-help">
+        <p id="commandsHelp" class="hint command-help">
           Use your project’s Python executable if it has a virtual environment. Arguments run directly, without a shell. Substitutions:
           <code>
             {project_root}

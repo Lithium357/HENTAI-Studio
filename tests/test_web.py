@@ -32,7 +32,7 @@ def definition(tmp_path):
 def test_empty_workspace_serves_dashboard_and_typed_api(client):
     assert client.get("/api/projects").json() == {"items": [], "next_cursor": None}
     assert client.get("/api/jobs").json() == {"items": [], "next_cursor": None}
-    assert client.get("/api/health").json()["version"] == "0.6.0"
+    assert client.get("/api/health").json()["version"] == "0.7.0"
     assert 'type="module"' in client.get("/").text
     for asset in ("api", "app", "metrics", "poller"):
         assert client.get(f"/assets/{asset}.js").status_code == 200

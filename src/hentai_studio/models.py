@@ -1,15 +1,14 @@
 from datetime import datetime
 from typing import Annotated, Generic, Literal, TypeVar
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
+from pydantic import Field, field_validator, model_validator
+
+from .llm.config import LLMProfile
+from .models_base import Model
 
 T = TypeVar("T")
 Command = Annotated[list[str], Field(min_length=1)]
 Identifier = Annotated[str, Field(pattern=r"^[a-zA-Z0-9][a-zA-Z0-9_-]{0,63}$")]
-
-
-class Model(BaseModel):
-    model_config = ConfigDict(extra="forbid", allow_inf_nan=False)
 
 
 class Collection(Model, Generic[T]):
@@ -23,6 +22,35 @@ class Project(Model):
     commands: dict[Identifier, Command] = Field(min_length=1, max_length=32)
     environment: dict[str, str] = Field(default_factory=dict)
     metrics_file: str = "metrics.jsonl"
+    llm: LLMProfile | None = None
+
+    @model_validator(mode="before")
+    @classmethod
+    def llm_command(cls, value):
+        if isinstance(value, dict) and value.get("llm") is not None:
+            import json
+            from pathlib import Path
+
+            profile = LLMProfile.model_validate(value["llm"])
+            training = profile.model_dump(exclude={"python"})
+            # Only the generated train command is owned by the LLM profile.
+            value = dict(value)
+            commands = value.get("commands") or {}
+            if not isinstance(commands, dict):
+                raise ValueError(
+                    "commands must be a JSON object of named argument arrays."
+                )
+            value["commands"] = commands | {
+                "train": [
+                    profile.python,
+                    "-u",
+                    str(Path(__file__).parent / "llm" / "train.py"),
+                    "--config-json",
+                    json.dumps(training),
+                ]
+            }
+            value["metrics_file"] = "metrics.jsonl"
+        return value
 
     @field_validator("name")
     @classmethod
@@ -125,7 +153,7 @@ class Job(Model):
     @classmethod
     def valid_timestamp(cls, value):
         if value is not None:
-            datetime.fromisoformat(value.replace("Z", "+00:00"))
+            datetime.fromisoformat(value)
         return value
 
     @model_validator(mode="after")

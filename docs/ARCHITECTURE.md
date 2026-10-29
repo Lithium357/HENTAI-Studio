@@ -1,6 +1,6 @@
 # Architecture
 
-Studio runs external commands and observes standard files. Domain/application code does not import FastAPI, any training framework, HENTAI or Lucy. Model and dataset logic belong to each external project.
+Studio runs external commands and observes standard files. Domain/application code does not import FastAPI, any training framework, HENTAI or Lucy. Custom model and dataset logic belong to each external project. The optional LLM runner supports local Transformers-compatible scratch models in a separate training environment.
 
 | Component | Responsibility |
 | --- | --- |
@@ -12,6 +12,8 @@ Studio runs external commands and observes standard files. Domain/application co
 | `jobs/worker.py` | Durable per-job external-command supervisor |
 | `jobs/processes.py` | PID/creation-time verification and owned-tree termination |
 | `jobs/outputs.py` | Bounded logs, JSONL/CSV metrics and confined artifacts |
+| `llm/config.py`, `llm/chat.py` | Optional scratch profiles and explicitly owned local inference workers |
+| `llm/train.py`, `llm/infer.py`, `llm/data.py` | Standalone ML processes and shared local data/prompt formatting |
 | `jobs/files.py` | Atomic persistence, Windows sharing retries, timestamps and confinement |
 | `dashboard_static/state.js` | Pure selection, lifecycle and control eligibility state |
 | `dashboard_static/views.js` | Safe text rendering and independent output panels |
@@ -45,7 +47,7 @@ Output reads are independent of lifecycle control. Metrics read recent bounded J
 
 ## Boundaries
 
-The CLI contains only Studio commands; no LLM extra, trainer, tokenizer, data normalizer or project-specific profile is installed. Historical training code remains recoverable from Git, with migration instructions in MIGRATION.md. The standalone ADLX probe source and vendored licenses remain in hardware_probe/ and vendor/ as a separate native utility; it is not packaged or loaded by the Python app.
+The CLI contains only Studio server commands. Optional scratch LLM support lives in `llm/`, with local profile generation and an explicit inference service. Torch and Transformers are imported only in separate trainer/inference processes launched with the project’s selected Python interpreter; default Studio startup remains model-library independent. Historical training code remains recoverable from Git, with migration instructions in MIGRATION.md. The standalone ADLX probe source and vendored licenses remain in hardware_probe/ and vendor/ as a separate native utility; it is not packaged or loaded by the Python app.
 
 The Windows shell verifies application identity through HTTP and launches the backend with file logging. It does not own trainer lifetime or redirect backend logs through pipes that would disappear when the shell closes. Its default workspace matches the Python CLI.
 
@@ -54,3 +56,5 @@ The Windows shell verifies application identity through HTTP and launches the ba
 The app factory composes resource routers rather than defining the entire API in closures. api/routes/projects.py owns registration and partial edits; api/routes/jobs.py owns the global job collection, lifecycle and outputs. api/schemas.py defines separate public inputs/responses. api/presenters.py translates persistence Job records into compact caller resources with links/actions, keeping process identities, full snapshots and environment overrides private. api/pagination.py owns filter-scoped keyset cursors. Dependencies are explicit and operation IDs are stable in OpenAPI.
 
 client.py is a synchronous standard-library Python client. It follows pagination and exposes registration, partial updates, jobs, wait/stop/resume, logs, metrics and artifact downloads. It uses the same HTTP contract as the browser; no in-process service shortcuts or hidden job-creation retries are involved. Input DTOs, public jobs and persistence models remain distinct.
+
+The inference service owns only its own child processes. GPU inference admission and job admission share the workspace lock; a loaded GPU chat model blocks new jobs, and active jobs block GPU chat loading. CPU chat is independent of training. Conversation history lives in browser memory, while inference diagnostics are stored separately under the workspace chat directory.

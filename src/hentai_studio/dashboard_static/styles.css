@@ -1496,3 +1496,156 @@ input {
     transition: none !important
   }
 }
+
+/* Scratch LLM workspace and local checkpoint chat. */
+.llm-fields {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 20px;
+  margin: 0 0 20px;
+  min-width: 0;
+}
+
+.llm-fields legend {
+  font-size: 12px;
+  color: var(--accent);
+  padding: 0 8px;
+}
+
+.llm-fields>.hint {
+  margin-bottom: 18px;
+  line-height: 1.8;
+}
+
+.workspace-tabs {
+  display: flex;
+  gap: 6px;
+  margin: 0 0 20px;
+  border-bottom: 1px solid var(--border);
+  padding-bottom: 10px;
+}
+
+.workspace-tabs button {
+  background: transparent;
+  border-color: transparent;
+  color: var(--muted);
+}
+
+.workspace-tabs button[aria-selected=true] {
+  background: #29231f;
+  border-color: #4c3b30;
+  color: var(--accent);
+}
+
+.chat-panel>.section-head {
+  align-items: flex-start;
+  margin-bottom: 24px;
+}
+
+.chat-load-grid {
+  display: grid;
+  grid-template-columns: 170px minmax(0, 1fr) 160px;
+  gap: 14px;
+}
+
+.chat-load-actions {
+  margin-top: 16px;
+}
+
+.chat-settings {
+  margin-bottom: 20px;
+}
+
+.chat-messages {
+  min-height: 260px;
+  max-height: 360px;
+  overflow: auto;
+  background: #121317;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 20px;
+}
+
+.chat-empty {
+  max-width: 360px;
+  margin: 75px auto;
+  color: var(--muted);
+  text-align: center;
+  font-size: 12px;
+  line-height: 1.8;
+}
+
+.chat-message {
+  margin-bottom: 18px;
+  padding: 15px;
+  background: #1b1d22;
+  border-radius: 7px;
+  border: 1px solid var(--border);
+}
+
+.chat-message.user {
+  margin-left: 12%;
+  background: #29231f;
+  border-color: #493a30;
+}
+
+.chat-message.assistant {
+  margin-right: 8%;
+}
+
+.chat-message strong {
+  display: block;
+  color: var(--accent);
+  font-size: 10px;
+  margin-bottom: 8px;
+}
+
+.chat-message p {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  font-size: 13px;
+  line-height: 1.8;
+}
+
+.chat-compose {
+  margin-top: 18px;
+}
+
+#chatError:not(:empty) {
+  margin-top: 15px;
+}
+
+@media(max-width:950px) {
+  .chat-load-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .chat-load-grid label:nth-child(2) {
+    grid-column: 1 / -1;
+    grid-row: 2;
+  }
+}
+
+@media(max-width:650px) {
+
+  .chat-panel>.section-head,
+  .chat-compose .section-head {
+    flex-wrap: wrap;
+  }
+
+  .chat-messages {
+    padding: 12px;
+  }
+
+  .chat-message.user {
+    margin-left: 6%;
+  }
+
+  .chat-message.assistant {
+    margin-right: 4%;
+  }
+
+  .llm-fields {
+    padding: 15px;
+  }
+}

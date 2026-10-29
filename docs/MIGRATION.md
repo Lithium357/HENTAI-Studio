@@ -25,3 +25,7 @@ The desktop shell now defaults to `~/.hentai-studio`, matching the CLI. If you p
 ## Older model-specific API
 
 The earlier `/api/runs`, `/api/diffusion`, and dashboard/studio CLI modes remain removed. Use `/api/projects` and `/api/jobs`, with explicit project-owned commands, output arguments and resume behavior. Studio never rewrites trainer configs, guesses watchdogs or imports checkpoint formats. See API.md and the demo trainer for the generic contract.
+
+## Optional scratch LLM support (0.7)
+
+An optional `llm` project profile adds local scratch training and checkpoint chat. This is independent of the historical bundled Lucy/HENTAI workloads. Generic project definitions remain valid; no ML package is imported by default. See [LLM.md](LLM.md). Updating backend routes requires restarting the Studio server; do not replace a running training environment or terminate an active job to update the dashboard.

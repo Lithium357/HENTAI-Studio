@@ -1,0 +1,4 @@
+{"messages":[{"role":"user","content":"Hello!"},{"role":"assistant","content":"Hello. How can I help?"}]}
+{"messages":[{"role":"user","content":"What is a token?"},{"role":"assistant","content":"A token is a unit of text processed by a language model."}]}
+{"messages":[{"role":"user","content":"Count to three."},{"role":"assistant","content":"One, two, three."}]}
+{"text":"A language model learns patterns by predicting the next token in a sequence."}

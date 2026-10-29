@@ -37,6 +37,8 @@ class Workspace:
         self._lock = threading.RLock()
         self._lease = WorkspaceLease(self.root)
         self._workers: list[subprocess.Popen] = []
+        self.change_guards = []
+        self.start_guards = []  # Optional admission policies supplied by the application.
         self.outputs = OutputReader(self.job_directory, self.get_job)
 
     def logs(self, *args, **kwargs):
@@ -177,6 +179,8 @@ class Workspace:
                     "project_busy",
                     "Stop the active job before changing this project.",
                 )
+            for guard in self.change_guards:
+                guard(project)
             root = Path(project.root).expanduser()
             if not root.is_absolute() or not root.is_dir():
                 raise StudioError(
@@ -224,6 +228,8 @@ class Workspace:
                     "project_busy",
                     "Stop the active job before removing this project.",
                 )
+            for guard in self.change_guards:
+                guard(project)
             self._project_file(project_id).unlink()
 
     def job_directory(self, job_id):
@@ -358,6 +364,8 @@ class Workspace:
                         "invalid_resume",
                         "Resume source must be a finished job from this project.",
                     )
+            for guard in self.start_guards:
+                guard(project, request)
             job_id = uuid.uuid4().hex
             directory = self.jobs / job_id
             directory.mkdir()

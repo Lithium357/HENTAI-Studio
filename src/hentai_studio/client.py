@@ -211,3 +211,59 @@ class StudioClient:
         with self._open("GET", url) as response, destination.open("wb") as target:
             shutil.copyfileobj(response, target)
         return destination
+
+    def create_llm_project(
+        self,
+        root,
+        *,
+        model,
+        tokenizer,
+        dataset,
+        python="python",
+        name=None,
+        id=None,
+        **training,
+    ):
+        """Register a scratch-model project using local config, tokenizer and dataset paths."""
+        body = {
+            "root": str(root),
+            "llm": {
+                "model": str(model),
+                "tokenizer": str(tokenizer),
+                "dataset": str(dataset),
+                "python": str(python),
+                **training,
+            },
+        }
+        if name is not None:
+            body["name"] = name
+        if id is not None:
+            body["id"] = id
+        return self.request("POST", "/api/projects", body)
+
+    def chat_status(self, project):
+        return self.request("GET", f"/api/projects/{_id(project)}/chat")
+
+    def load_chat(self, project, checkpoint, *, job=None, device="cpu", tokenizer=""):
+        body = {
+            "checkpoint": str(checkpoint),
+            "device": device,
+            "tokenizer": str(tokenizer),
+        }
+        if job is not None:
+            body["job_id"] = job["id"] if isinstance(job, dict) else job
+        return self.request("POST", f"/api/projects/{_id(project)}/chat/load", body)
+
+    def unload_chat(self, project):
+        return self.request("POST", f"/api/projects/{_id(project)}/chat/unload")
+
+    def chat(self, project, messages, *, temperature=0.7, max_tokens=128):
+        return self.request(
+            "POST",
+            f"/api/projects/{_id(project)}/chat/completions",
+            {
+                "messages": messages,
+                "temperature": temperature,
+                "max_tokens": max_tokens,
+            },
+        )

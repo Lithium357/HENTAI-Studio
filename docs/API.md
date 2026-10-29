@@ -1,4 +1,4 @@
-# Studio API 0.6
+# Studio API 0.7
 
 Register a project once, start its commands as jobs, and follow the returned job URL. The API works without any model framework or training-project import. Start `hentai-studio serve`; the default server is `http://127.0.0.1:7860`.
 
@@ -148,3 +148,7 @@ Bodies are capped at 128 KiB with a 15-second receive timeout. Responses disable
 - Replace `tail=true` with a tail byte count such as `tail=65536`.
 
 The dashboard and bundled client use this same contract. Removed endpoints are not compatibility aliases.
+
+## Scratch LLM projects and local chat
+
+Project definitions can include an `llm` profile that generates their scratch `train` command. Local checkpoint chat has dedicated status, load, unload, and completion routes. See [the LLM guide](LLM.md#api-and-python-client) for the full schema and client examples. Existing generic projects need no changes.

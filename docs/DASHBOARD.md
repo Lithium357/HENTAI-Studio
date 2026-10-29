@@ -20,3 +20,5 @@ Interrupted jobs with recorded live processes show a recovery message and can st
 The overview counts follow the current scope: all jobs across the workspace, or only the selected project. Completed jobs include all jobs without an active process (including failed and stopped jobs). The first summary card shows registered projects in All jobs and available commands in a project. The metric card shows the latest numeric value; select another metric to change the chart. Environment and output settings are available in the registration dialog’s expandable section.
 
 Project and history buttons retain keyboard focus across background refreshes. The history becomes a horizontally scrollable strip on smaller screens, with the job details below it.
+
+Scratch LLM projects have a dedicated configuration form and a Chat tester tab for explicit local checkpoint loading and conversation testing. See [the LLM guide](LLM.md). Generic projects retain their command-based workflow.

@@ -1,8 +1,14 @@
 import {
+  openLLMProfile,
+  readLLMProfile,
+  toggleLLMFields
+} from "./llm-editor.js";
+import {
   $
 } from "./views.js";
 
 export function bindProjectEditor(save) {
+  $("fieldType").onchange = toggleLLMFields;
   let editing = false;
   let saving = false;
   $("closeEditor").onclick = () => {
@@ -22,7 +28,8 @@ export function bindProjectEditor(save) {
         id: $("fieldId").value.trim(),
         name: $("fieldName").value.trim(),
         root: $("fieldRoot").value.trim(),
-        commands: JSON.parse($("fieldCommands").value),
+        commands: $("fieldType").value === "llm" ? {} : JSON.parse($("fieldCommands").value),
+        llm: readLLMProfile(),
         environment: JSON.parse($("fieldEnv").value),
         metrics_file: $("fieldMetrics").value.trim(),
       };
@@ -60,6 +67,7 @@ export function bindProjectEditor(save) {
         ]) $(element).value = definition[key];
       $("fieldCommands").value = JSON.stringify(definition.commands, null, 2);
       $("fieldEnv").value = JSON.stringify(definition.environment, null, 2);
+      openLLMProfile(definition.llm);
       $("formError").textContent = "";
       $("editor").showModal();
     },

@@ -93,7 +93,7 @@ try {
     if (path === '/api/health') json = {
       application: 'hentai-studio',
       status: 'ok',
-      version: '0.6.0',
+      version: '0.7.0',
       workspace: '/home/you/.hentai-studio',
       issues: []
     };

@@ -10,4 +10,4 @@ The log-file option appends server/error/access logs to a durable UTF-8 file. Wi
 
 Only one dashboard process may serve a workspace. Closing the server leaves job supervisors running. Reopening the same workspace reconnects to them. The default host is loopback; Host validation also permits a concrete host explicitly passed at startup. Studio has no account/authentication system.
 
-The old dashboard/studio modes and `llm-*` commands are removed. No ML package extra exists. Run each trainer through that project's own environment and register its real argument arrays. See MIGRATION.md for recovering the historical bundled tools.
+The old dashboard/studio modes and `llm-*` commands are removed. The optional `[llm]` extra provides dependencies for local scratch training and checkpoint chat; it adds no CLI subcommands. Run each trainer through that project's own environment and register its real argument arrays. See MIGRATION.md for recovering the historical bundled tools.

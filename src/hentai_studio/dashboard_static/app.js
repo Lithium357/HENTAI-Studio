@@ -1,4 +1,7 @@
 import {
+  bindChat
+} from "./chat.js";
+import {
   api
 } from "./api.js";
 import {
@@ -19,6 +22,7 @@ import {
 } from "./editor.js";
 
 const state = new WorkspaceState();
+const chat = bindChat(() => state);
 let controller;
 const callbacks = {
   selectProject(id) {
@@ -33,6 +37,7 @@ const callbacks = {
 
 function render() {
   renderWorkspace(state, callbacks);
+  chat.render();
 }
 
 function changed() {

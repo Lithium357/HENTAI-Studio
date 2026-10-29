@@ -23,7 +23,7 @@ The browser test launches an empty server and registers the standard-library dem
 
 ## Packaging and desktop
 
-Build a wheel and install it in a fresh environment. Run the entire Python and browser suites against that installed package without scratchtag, Lucy, Torch, Transformers, Diffusers or any training library. Check the wheel contains no workloads/core trainer tree, profiles, compiled probe, or ML requirements. Clean stale build output after removing modules; package discovery excludes implicit namespaces and only declared browser assets are shipped.
+Build a wheel and install it in a fresh environment. Run the entire Python and browser suites against that installed package without scratchtag, Lucy, Torch, Transformers, Diffusers or any training library. Check the wheel contains no historical workloads/core trainer tree, bundled project profiles, or compiled probe. ML requirements must be restricted to the optional llm extra; its standalone runner modules must be present. Clean stale build output after removing modules; package discovery excludes implicit namespaces and only declared browser assets are shipped.
 
 `dotnet build windows/HENTAIStudio/HENTAIStudio.csproj --configuration Release` validates the optional shell. Native runtime/UI launch is separate from compilation. build.ps1 publishes only unless -Install is explicitly supplied; installation creates a private backend venv and shortcuts without deleting workspace data.
 
@@ -34,3 +34,9 @@ The API contract suite verifies registration defaults, atomic partial edits, pub
 ## Documentation screenshots
 
 After the browser dependencies above are installed, run `npm run docs:screenshots`. The capture uses the real dashboard with deterministic illustrative API responses and a temporary static server on a free loopback port. It never connects to a Studio service, starts a trainer, or accesses a real workspace. The resulting dashboard, registration, and mobile previews live in `docs/assets/`. The browser/module environment overrides described above also apply.
+
+## Optional LLM checks
+
+`npm run test:llm-browser` exercises the scratch profile form, explicit checkpoint loading, chat history, failure handling, project isolation, and mobile layout against a temporary server with a fake inference worker. It never loads a model or uses the GPU.
+
+With the optional LLM dependencies installed, run `STUDIO_TEST_LLM=1 python -m pytest tests/test_llm_runtime.py` (set `$env:STUDIO_TEST_LLM = '1'` first in PowerShell). This test creates a tiny tokenizer and architecture locally, trains random weights on CPU, resumes a saved checkpoint, and generates text through the real inference worker. Set `CUDA_VISIBLE_DEVICES` to an empty value to keep the test explicitly CPU-only. No network access or model download is needed.

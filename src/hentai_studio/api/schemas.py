@@ -5,7 +5,8 @@ from typing import Generic, Literal, TypeVar
 
 from pydantic import ConfigDict, Field, field_validator, model_validator
 
-from ..models import Identifier, Model, Project, WorkspaceIssue
+from ..llm.config import LLMProfile
+from ..models import Command, Identifier, Model, Project, WorkspaceIssue
 
 T = TypeVar("T")
 JobState = Literal[
@@ -44,6 +45,9 @@ class Page(Model, Generic[T]):
 
 
 class ProjectCreate(Project):
+    commands: dict[Identifier, Command] = Field(
+        default_factory=dict, validate_default=True, min_length=1, max_length=32
+    )
     model_config = ConfigDict(
         json_schema_extra={
             "examples": [
@@ -78,22 +82,21 @@ class ProjectPatch(Model):
     commands: dict[Identifier, list[str]] | None = None
     environment: dict[str, str] | None = None
     metrics_file: str | None = None
+    llm: LLMProfile | None = None
 
     @field_validator("*")
     @classmethod
-    def reject_null(cls, value):
-        if value is None:
+    def reject_null(cls, value, info):
+        if value is None and info.field_name != "llm":
             raise ValueError(
-                "Omit this field to keep its current value; null is not supported."
+                "Omit this field to keep its current value; null is supported only for llm (to remove its profile)."
             )
         return value
 
     @model_validator(mode="after")
     def nonempty(self):
         if not self.model_fields_set:
-            raise ValueError(
-                "Supply at least one project field; null values are not supported."
-            )
+            raise ValueError("Supply at least one project field.")
         return self
 
 

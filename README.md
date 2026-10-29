@@ -44,7 +44,7 @@ Studio manages external processes, so your projects keep their own code, depende
 | Register any local project directory. | Launch named commands in the project’s own environment. | Follow console output and any numeric metric. |
 | Keep separate commands for training, evaluation, or resume. | Run independent projects concurrently, with one active job per project. | Download checkpoints and files from each job’s output directory. |
 
-Studio runs independently of [HENTAI](https://github.com/Lithium357/HENTAI) and [Lucy](https://github.com/Lithium357/LUCY-ERP). They can be managed like any other external project. Studio itself installs no training libraries.
+Studio runs independently of [HENTAI](https://github.com/Lithium357/HENTAI) and [Lucy](https://github.com/Lithium357/LUCY-ERP). They can be managed like any other external project. The default installation needs no training libraries. Optional [scratch LLM support](docs/LLM.md) adds a local trainer and checkpoint chat tester.
 
 ## Get started
 
@@ -102,6 +102,14 @@ Studio executes argument arrays directly in your registered directory. It suppli
 
 Numeric JSONL or CSV columns become charts. Metrics are optional; console output works for any command. See [projects and jobs](docs/PROJECTS.md) for command substitutions, environment variables, output conventions, and process recovery.
 
+## Train a scratch LLM and test it in chat
+
+Choose **Scratch LLM training** when registering a project. Point Studio to your local architecture configuration, tokenizer, dataset, and training Python environment. The optional runner initializes fresh weights, records training metrics, and saves resumable checkpoints.
+
+The **Chat tester** loads your saved local checkpoints in a separate inference worker. CPU is the default; GPU inference has explicit load/unload controls and cannot compete with an active Studio training job. No remote model API is involved.
+
+See the [scratch LLM guide](docs/LLM.md) for installation, a small local example, dataset formats, and the API.
+
 ## Script the same workflow
 
 ```python
@@ -125,6 +133,7 @@ The included Python client uses the standard library. The [API guide](docs/API.m
 | :--- | :--- |
 | [Dashboard](docs/DASHBOARD.md) | Projects, job controls, metrics, console, and files |
 | [Projects and jobs](docs/PROJECTS.md) | Trainer integration, outputs, resume, and recovery |
+| [Scratch LLMs & chat](docs/LLM.md) | Local scratch training, checkpoints, and response testing |
 | [API & Python client](docs/API.md) | Request examples and the complete client workflow |
 | [Command line](docs/CLI.md) | Server options and workspace configuration |
 | [Windows app](docs/WINDOWS.md) | Build, installation, and backend selection |
@@ -140,7 +149,7 @@ python -m pytest
 npm test
 ```
 
-No ML packages or GPU are required. See [Contributing](CONTRIBUTING.md) before proposing a change. Tests run on Windows and Linux with Python 3.11 and 3.12; browser acceptance is documented separately.
+No ML packages or GPU are required for the default application tests. The optional LLM runtime smoke test uses a tiny offline CPU model. See [Contributing](CONTRIBUTING.md) before proposing a change. Tests run on Windows and Linux with Python 3.11 and 3.12; browser acceptance is documented separately.
 
 ---
 
