@@ -7,6 +7,7 @@ export class WorkspaceState {
     this.jobs = [];
     this.projectId = null;
     this.jobId = null;
+    this.launchMode = "new";
     this.commands = new Map();
     this.jobSelections = new Map();
     this.revision = 0;
@@ -33,6 +34,7 @@ export class WorkspaceState {
     if (this.projectId === id) return;
     this.jobSelections.set(this.projectId, this.jobId);
     this.projectId = id;
+    this.launchMode = "new";
     this.jobId = this.jobSelections.get(id) || null;
     this.jobs = [];
     this.loading = true;
@@ -40,6 +42,7 @@ export class WorkspaceState {
   }
   selectJob(id) {
     this.jobId = id;
+    this.launchMode = "new";
     this.revision++;
   }
   setProjects(projects) {
@@ -56,6 +59,9 @@ export class WorkspaceState {
   }
   get canStart() {
     return !this.blocked && !this.issues.length && !!this.project && !this.jobs.some(isBusy);
+  }
+  get canLaunch() {
+    return this.launchMode === "resume" ? this.canResume : this.canStart;
   }
   get canEdit() {
     return this.canStart;

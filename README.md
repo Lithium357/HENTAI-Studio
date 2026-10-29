@@ -22,16 +22,16 @@
 </p>
 
 <p align="center">
-  <img src="docs/assets/dashboard.png" alt="Studio dashboard with a project sidebar, job history, training metric chart, and console" width="100%">
+  <img src="docs/assets/dashboard.png" alt="Studio dashboard with persistent Stop controls, job history, a training chart, and performance and hardware measurements" width="100%">
   <sub>Illustrative demo workspace. Your trainer supplies the commands, metrics, and output files.</sub>
 </p>
 
 <details>
-<summary>Project setup &amp; mobile views</summary>
+<summary>Project setup &amp; desktop inspection views</summary>
 
 <p align="center"><img src="docs/assets/project-setup.png" alt="Project registration with command arrays and expandable environment settings" width="100%"></p>
 
-[View the mobile layout](docs/assets/mobile.png).
+[Console workspace](docs/assets/console.png) · [Output files](docs/assets/files.png) · [Resume and command preview](docs/assets/launch-resume.png) · [Compact desktop](docs/assets/desktop-compact.png).
 
 </details>
 

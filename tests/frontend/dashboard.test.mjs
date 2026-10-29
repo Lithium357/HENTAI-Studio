@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import {
-  metricGeometry, preferredMetric, readableConsole
+  metricGeometry, preferredMetric, readableConsole, metricMeasurements
 } from "../../src/hentai_studio/dashboard_static/metrics.js";
 import {
   requestJSON,
@@ -10,8 +10,24 @@ import {
 import {
   createPoller
 } from "../../src/hentai_studio/dashboard_static/poller.js";
+import { launchDefinition } from "../../src/hentai_studio/dashboard_static/launch.js";
 
 const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
+
+test("launch definitions expand only known paths and preserve exact argument boundaries", () => {
+  const project = { root: "/project with spaces", commands: { train: ["{project_root}/.venv/bin/python", "train.py", "--output", "{output_dir}", "argument with spaces"] } };
+  assert.deepEqual(launchDefinition(project, "train"), ["/project with spaces/.venv/bin/python", "train.py", "--output", "{output_dir}", "argument with spaces"]);
+  assert.deepEqual(launchDefinition(null, "train"), []);
+});
+
+test("measurements preserve zero and distinguish absent telemetry from a real reading", () => {
+  const result = metricMeasurements([{ step: 0, progress_percent: 0, gpu_usage_pct: 0, eta_seconds: 3661 }]);
+  assert.deepEqual(result.performance[0], ["Step", "0 / —"]);
+  assert.deepEqual(result.performance[1], ["Progress", "0%"]);
+  assert.deepEqual(result.performance[4], ["Estimated remaining", "1h 1m"]);
+  assert.deepEqual(result.hardware[0], ["GPU utilization", "0%"]);
+  assert.deepEqual(result.hardware[1], ["VRAM", "—"]);
+});
 
 test("metric defaults prefer loss over metadata and preserve a valid selection", () => {
   const keys = ["resumed_from_step", "total_steps", "loss", "gpu_usage_pct"];

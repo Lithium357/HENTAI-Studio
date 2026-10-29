@@ -124,6 +124,7 @@ export function bindChat(getState) {
     tab = value;
     $("overviewSummary").hidden = tab === "chat";
     $("launchPanel").hidden = tab === "chat" || !getState().project;
+    $("launchHint").hidden = tab === "chat";
     $("chatPanel").hidden = tab !== "chat" || !getState().project?.llm;
     $("jobWorkspace").hidden = tab === "chat" && !!getState().project?.llm;
     $("jobsTab").setAttribute("aria-selected", String(tab === "jobs"));
@@ -238,6 +239,7 @@ export function bindChat(getState) {
       }
       $("overviewSummary").hidden = tab === "chat" && !!state.project?.llm;
       $("launchPanel").hidden = !state.project || (tab === "chat" && !!state.project.llm);
+      $("launchHint").hidden = tab === "chat" && !!state.project?.llm;
       $("chatPanel").hidden = tab !== "chat" || !state.project?.llm;
       $("jobWorkspace").hidden = tab === "chat" && !!state.project?.llm;
       $("jobsTab").setAttribute("aria-selected", String(tab === "jobs"));

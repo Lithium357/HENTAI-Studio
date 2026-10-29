@@ -44,3 +44,17 @@ export function readableConsole(text) {
   return text.replace(/\x1b\[[0-?]*[ -/]*[@-~]/g, "").replace(/\r\n/g, "\n")
     .split("\n").map(line => line.split("\r").filter(Boolean).at(-1) || "").join("\n");
 }
+
+export function metricMeasurements(rows) {
+  const latest = key => rows.findLast(row => Number.isFinite(row[key]))?.[key];
+  const value = (key, suffix = "") => {
+    const result = latest(key);
+    return result === undefined ? "—" : `${Number(result.toPrecision(5)).toLocaleString()}${suffix}`;
+  };
+  const eta = latest("eta_seconds");
+  const etaText = eta === undefined ? "—" : eta < 0 ? "Unavailable" : eta >= 3600 ? `${Math.floor(eta / 3600)}h ${Math.floor(eta % 3600 / 60)}m` : `${Math.floor(eta / 60)}m ${Math.floor(eta % 60)}s`;
+  return {
+    performance: [["Step", `${value("step")} / ${value("total_steps")}`], ["Progress", value("progress_percent", "%")], ["Throughput", value("steps_per_second", " steps/s")], ["Step time", value("seconds_per_step", " s")], ["Estimated remaining", etaText], ["Images seen", value("images_seen")]],
+    hardware: [["GPU utilization", value("gpu_usage_pct", "%")], ["VRAM", value("gpu_vram_mb", " MB")], ["GPU temperature", value("gpu_temp_c", " °C")], ["GPU power", value("gpu_board_power_w", " W")], ["Host RAM", value("process_ram_mb", " MB")], ["Process CPU", value("process_cpu_pct", "%")]],
+  };
+}

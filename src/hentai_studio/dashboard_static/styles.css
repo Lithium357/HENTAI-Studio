@@ -503,32 +503,6 @@ main {
   padding: 12px 16px
 }
 
-.launch-caption {
-  display: flex;
-  gap: 11px;
-  align-items: center;
-  margin-right: auto
-}
-
-.launch-caption h2 {
-  font-size: 12px
-}
-
-.launch-caption p {
-  color: var(--muted);
-  font-size: 10px;
-  margin-top: 2px
-}
-
-.panel-icon {
-  font-size: 20px;
-  color: var(--accent);
-  border: 1px solid #493a30;
-  background: #2a231f;
-  border-radius: 7px;
-  padding: 5px 10px
-}
-
 .launch label {
   margin: 0
 }
@@ -1119,11 +1093,6 @@ input {
     gap: 14px
   }
 
-  .launch-caption {
-    width: 100%;
-    margin-bottom: 2px
-  }
-
   .launch .primary {
     margin-left: auto
   }
@@ -1368,10 +1337,6 @@ input {
     padding: 7px 10px
   }
 
-  .launch-caption {
-    display: none
-  }
-
   .job-layout {
     gap: 16px
   }
@@ -1519,7 +1484,6 @@ input {
 .project-heading .actions { padding-top: 0; }
 .overview>div { display: flex; align-items: baseline; gap: 12px; }
 .overview strong { margin: 0; order: -1; }
-.launch-caption { display: none; }
 .launch label:not(.check) { flex-direction: row; align-items: center; gap: 12px; font-size: 12px; }
 .launch label:not(.check) select { width: 160px; }
 .launch label.check { margin-left: auto; font-size: 12px; }
@@ -1541,11 +1505,6 @@ button.stop-action.available:hover { background: #71333e; border-color: #ed8f9f;
 .job-summary h2 { font-size: 17px; }
 .job-summary .hint { font-size: 12px; margin-top: 7px; }
 .lineage { color: var(--accent); font-size: 12px; min-height: 28px; padding: 4px 0; white-space: normal; text-align: left; margin-top: 4px; }
-.run-signals { display: flex; gap: 24px; flex-wrap: wrap; margin-top: 14px; }
-.run-signals:empty { display: none; }
-.run-signals div { display: grid; gap: 3px; }
-.run-signals span { color: var(--muted); font-size: 11px; }
-.run-signals strong { font-size: 13px; font-weight: 500; font-variant-numeric: tabular-nums; }
 .chart-container { margin-left: 62px; }
 .chart-y { position: absolute; left: -62px; top: 8px; bottom: 8px; display: flex; flex-direction: column; justify-content: space-between; width: 54px; text-align: right; font: 11px Consolas, monospace; color: #b4b8c3; }
 .chart-x { display: flex; justify-content: space-between; margin: 7px 0 0 62px; color: #b4b8c3; font: 11px Consolas, monospace; }
@@ -1568,7 +1527,6 @@ button.stop-action.available:hover { background: #71333e; border-color: #ed8f9f;
 .status { font-size: 11px; }
 @media(min-width:1600px) { main { padding: 24px 36px; } }
 @media(max-width:950px) {
-  .launch-caption { display: none; }
   .launch { flex-wrap: wrap; gap: 12px; }
   .console-panel>.section-head { flex-wrap: wrap; }
   .chart-inspect { grid-template-columns: 1fr; gap: 4px; }
@@ -1595,13 +1553,75 @@ button.stop-action.available:hover { background: #71333e; border-color: #ed8f9f;
   .console-search { align-items: stretch; flex-direction: column; gap: 6px; }
   .console-search .hint { max-width: 100%; }
   .console-actions { gap: 2px; }
-  .run-signals { gap: 12px; }
   .chart-container { margin-left: 50px; }
   .chart-y { left: -50px; width: 44px; font-size: 10px; }
   .chart-x { margin-left: 50px; font-size: 10px; }
   .job-summary .section-head { gap: 8px; }
   .job-summary h2 { font-size: 16px; }
   .metric-select { max-width: 150px; }
+}
+
+/* Run inspection keeps task navigation separate from training/chat navigation. */
+.launch-disclosure { padding: 10px 16px; margin-bottom: 14px; }
+.launch-disclosure>summary { cursor: pointer; font-size: 12px; font-weight: 600; color: #c7cad3; }
+.launch-disclosure>summary .hint { margin-left: 12px; font-weight: 400; font-size: 12px; }
+.launch-disclosure .launch { margin: 12px 0 0; padding: 0; background: transparent; }
+.launch-disclosure .launch-hint { margin: 10px 0 0; }
+.launch-disclosure .launch-hint:empty { margin: 0; }
+.inspection-tabs { display: flex; gap: 8px; border-bottom: 1px solid var(--border); background: #101114; padding: 0 0 8px; }
+.inspection-tabs [role=tab] { background: transparent; border-color: transparent; color: var(--muted); font-size: 13px; padding: 8px 16px; }
+.inspection-tabs [aria-selected=true] { color: var(--accent); background: #29231f; border-color: #4c3b30; }
+#overviewPanel { display: grid; gap: 14px; }
+.telemetry-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
+.signal-list { margin: 16px 0 0; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); column-gap: 20px; row-gap: 15px; }
+.signal-list div { min-width: 0; }
+.signal-list dt { font-size: 12px; color: var(--muted); margin-bottom: 3px; }
+.signal-list dd { margin: 0; font: 14px/1.5 Consolas, monospace; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+.signal-list .unavailable { color: #858a96; }
+.measurement-context { font-size: 12px; }
+.launch { display: grid; grid-template-columns: auto minmax(200px, 1fr) auto; gap: 10px 24px; align-items: center; }
+.launch-mode { display: flex; gap: 0; padding: 3px; margin: 0; min-width: 0; border: 1px solid var(--border); border-radius: 7px; background: #121418; }
+.launch .launch-mode label { margin: 0; padding: 6px 10px; min-width: 0; gap: 6px; border-radius: 5px; cursor: pointer; font-size: 12px; }
+.launch .launch-mode label:has(input:checked) { color: var(--accent); background: #30271f; }
+.launch .launch-mode label:has(input:disabled) { cursor: default; color: #828793; }
+.launch-mode input[type=radio] { width: 14px; height: 14px; min-height: 0; margin: 0; padding: 0; accent-color: var(--accent); }
+.launch label:not(.check) { min-width: 0; }
+.launch-source { grid-column: 1 / -1; font-size: 12px; line-height: 1.6; padding: 8px 12px; color: #eac5ad; background: #2b251f; border-left: 2px solid var(--accent); overflow-wrap: anywhere; }
+.launch-definition { grid-column: 1 / -1; font-size: 12px; border-top: 1px solid var(--border); padding-top: 8px; }
+.launch-definition summary { width: fit-content; color: #b7bac4; cursor: pointer; }
+.launch-definition dl { margin: 12px 0; display: grid; gap: 10px; }
+.launch-definition dl>div { display: grid; grid-template-columns: 140px minmax(0, 1fr); gap: 12px; }
+.launch-definition dt { color: var(--muted); }
+.launch-definition dd { margin: 0; font: 12px/1.6 Consolas, monospace; overflow-wrap: anywhere; }
+.launch-definition pre { min-height: 0; max-height: 220px; padding: 8px 12px; border-radius: 5px; }
+.launch-definition .hint { font-size: 12px; }
+@media(min-width:1000px) {
+  .history { position: sticky; top: 90px; }
+  #jobs { max-height: calc(100vh - 280px); overflow: auto; }
+  .job-summary .eyebrow { display: none; }
+  .job-summary { padding: 12px 18px; }
+  .job-summary .section-head { margin-bottom: 6px; }
+  #inspectionTabs { position: sticky; top: 90px; z-index: 4; }
+  #consolePanel #logs { min-height: 320px; height: calc(100vh - 540px); max-height: 900px; }
+  #consolePanel #logs.expanded { height: 75vh; max-height: 75vh; }
+  #filesPanel #artifacts { max-height: calc(100vh - 580px); min-height: 240px; }
+}
+@media(max-width:999px) {
+  .launch { grid-template-columns: minmax(0, 1fr) auto; gap: 10px; }
+  .launch-mode { grid-column: 1 / -1; width: fit-content; }
+  .telemetry-grid { grid-template-columns: minmax(0, 1fr); }
+  .launch-definition dl>div { grid-template-columns: minmax(0, 1fr); gap: 4px; }
+}
+
+@media(min-width:1400px) {
+  #overviewPanel { grid-template-columns: minmax(0, 1fr) 260px; align-items: start; }
+  .metrics-panel { min-width: 0; }
+  .telemetry-grid { grid-template-columns: minmax(0, 1fr); }
+  .telemetry-panel { padding: 16px; }
+  .signal-list { column-gap: 12px; row-gap: 12px; }
+  .signal-list dd { font-size: 13px; }
+  .measurement-context { grid-column: 1 / -1; }
+  .chart-inspect { grid-template-columns: minmax(0, 1fr); gap: 5px; }
 }
 
 .llm-fields {

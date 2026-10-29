@@ -33,7 +33,7 @@ The API contract suite verifies registration defaults, atomic partial edits, pub
 
 ## Documentation screenshots
 
-After the browser dependencies above are installed, run `npm run docs:screenshots`. The capture uses the real dashboard with deterministic illustrative API responses and a temporary static server on a free loopback port. It never connects to a Studio service, starts a trainer, or accesses a real workspace. The resulting dashboard, registration, and mobile previews live in `docs/assets/`. The browser/module environment overrides described above also apply.
+After the browser dependencies above are installed, run `npm run docs:screenshots`. The capture uses the real dashboard with deterministic illustrative API responses and a temporary static server on a free loopback port. It never connects to a Studio service, starts a trainer, or accesses a real workspace. The resulting Overview, Console, Files, registration, resume-definition, and compact desktop previews live in `docs/assets/`. The browser/module environment overrides described above also apply.
 
 ## Optional LLM checks
 

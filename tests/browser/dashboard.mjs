@@ -83,6 +83,19 @@ try {
   await page.locator(".job-item.selected").focus();
   await page.waitForTimeout(2300);
   assert.equal(await page.locator(".job-item.selected").evaluate(node => node === document.activeElement), true);
+  await page.locator("#overviewTab").focus();
+  await page.locator("#overviewTab").press("ArrowRight");
+  assert.equal(await page.locator("#consolePanel").isVisible(), true);
+  assert.equal(await page.locator("#overviewPanel").isVisible(), false);
+  await page.waitForTimeout(2300);
+  assert.equal(await page.locator("#consoleTab").getAttribute("aria-selected"), "true");
+  assert.equal(await page.locator("#consoleTab").evaluate(node => node === document.activeElement), true);
+  await page.locator("#consoleTab").press("End");
+  assert.equal(await page.locator("#filesPanel").isVisible(), true);
+  await page.locator("#filesTab").press("Home");
+  assert.equal(await page.locator("#overviewPanel").isVisible(), true);
+  assert.match(await page.locator("#hardwareSignals").textContent(), /VRAM—/);
+  assert.match(await page.locator("#measurementContext").textContent(), /not current machine/);
   assert.match(await page.locator("#logs").textContent(), /Finished/);
   const checkpoint = page.locator("#artifacts a").filter({
     hasText: "checkpoint.json"
@@ -93,12 +106,25 @@ try {
   await page.locator("#metric").selectOption("accuracy");
   assert.match(await page.locator("#metricSummary").textContent(), /accuracy/);
   await page.locator("#command").selectOption("resume");
-  await page.locator("#resume").check();
+  await page.locator("#modeResume").check();
+  const sourceId = await page.locator("#jobId").textContent();
+  assert.ok((await page.locator("#launchSource").textContent()).includes(sourceId));
+  assert.match(await page.locator("#start").textContent(), /Resume run/);
+  await page.locator("#launchDefinition summary").click();
+  assert.equal(await page.locator("#launchExecutable").textContent(), python);
+  assert.match(await page.locator("#launchArguments").textContent(), /demo_train.py/);
+  await page.locator("#launchDefinition summary").click();
   await page.locator("#start").click();
   await page.waitForFunction(() => document.getElementById("jobState").textContent.includes("succeeded") && document.getElementById("logs").textContent.includes("from step 5"));
   assert.match(await page.locator("#resumeSource").textContent(), /Resume source/);
   await page.locator("#resumeSource").click();
+  assert.equal(await page.locator("#modeNew").isChecked(), true);
   await page.waitForFunction(() => document.getElementById("metric").value === "accuracy");
+  await page.locator("#consoleTab").click();
+  await page.locator(".job-item").first().click();
+  await page.waitForFunction(id => document.getElementById("jobId").textContent !== id && !document.getElementById("jobDetail").hidden, sourceId);
+  await page.locator(".job-item").last().click();
+  await page.waitForFunction(() => document.getElementById("consoleTab").getAttribute("aria-selected") === "true" && !document.getElementById("jobDetail").hidden);
   await page.reload();
   await page.waitForFunction(() => document.querySelectorAll(".job-item").length === 2);
   await page.locator(".job-item").last().click();
@@ -115,6 +141,7 @@ try {
   await page.waitForFunction(() => document.getElementById("jobState").textContent.includes("succeeded"));
   assert.equal(await page.locator("#stop").isEnabled(), true);
   assert.ok((await page.locator("#controlTarget").textContent()).includes(activeId.slice(0, 8)));
+  await page.locator("#filesTab").click();
   await page.locator("#artifacts").scrollIntoViewIfNeeded();
   assert.ok(await page.locator("#stop").evaluate(node => {
     const rect = node.getBoundingClientRect();
@@ -158,6 +185,7 @@ try {
   assert.match(await page.locator("#notice").textContent(), /Persistent action failure/);
   await page.unroute("**/api/jobs");
   // One broken output panel must not hide console, state or controls.
+  await page.locator("#consoleTab").click();
   await page.route("**/metrics", route => route.fulfill({
     status: 503,
     json: {
@@ -185,6 +213,7 @@ try {
   await page.locator("#expandLogs").click();
   assert.equal(await page.locator("#expandLogs").getAttribute("aria-expanded"), "true");
   await page.unroute("**/logs?*");
+  await page.locator("#filesTab").click();
   await page.locator("#artifactFilter").fill("checkpoint");
   assert.equal(await page.locator("#artifacts a").count(), 1);
   await page.locator("#artifactFilter").fill("no-such-file");
@@ -194,6 +223,12 @@ try {
   assert.equal(await page.locator(".job-item").count(), 0);
   await page.locator("#jobFilter").fill("");
   assert.equal(await page.locator(".job-item").count(), 3);
+  // Desktop laptop view: keep inspection and job controls functional at 1280×800.
+  await page.setViewportSize({ width: 1280, height: 800 });
+  assert.equal(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth), false);
+  await page.locator("#consoleTab").click();
+  await page.locator("#logs").scrollIntoViewIfNeeded();
+  assert.ok(await page.locator("#stop").evaluate(node => node.getBoundingClientRect().top >= 0));
   await page.setViewportSize({
     width: 390,
     height: 844
@@ -201,6 +236,7 @@ try {
   assert.equal(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth), false);
   assert.equal(await page.locator("#start").isVisible(), true);
   await page.unroute("**/api/jobs");
+  await page.locator("#consoleTab").click();
   await page.locator("#refresh").click();
   await page.waitForFunction(() => !document.getElementById("metricSummary").textContent.includes("unavailable"));
   if (process.env.STUDIO_SCREENSHOT) await page.screenshot({

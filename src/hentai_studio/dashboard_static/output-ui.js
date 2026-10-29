@@ -1,10 +1,12 @@
-import { metricGeometry, metricGroup, preferredMetric, readableConsole } from "./metrics.js";
+import { metricGeometry, metricGroup, preferredMetric, readableConsole, metricMeasurements } from "./metrics.js";
 import { isBusy } from "./state.js";
 import { api } from "./api.js";
 
 const $ = id => document.getElementById(id);
 const preferences = new Map();
 const inspections = new Map();
+const tabs = new Map();
+const inspectionPanels = ["overview", "console", "files"];
 let currentJob, rows = [], geometry = { values: [] }, truncated = false;
 let rawLog = "", logSize = 0, files = [], fileTruncated = false, fileError = "", logError = "";
 const number = value => Number(value.toPrecision(5)).toLocaleString(undefined, { maximumSignificantDigits: 5 });
@@ -70,14 +72,30 @@ export function plot() {
 }
 
 function renderSignals() {
-  $("runSignals").replaceChildren();
-  for (const [key, label, suffix] of [["progress_percent", "Progress", "%"], ["seconds_per_step", "Step time", " s"], ["steps_per_second", "Throughput", " steps/s"], ["gpu_vram_mb", "VRAM", " MB"]]) {
-    const value = rows.findLast(row => Number.isFinite(row[key]))?.[key];
-    if (value === undefined) continue;
-    const signal = document.createElement("div"), title = document.createElement("span"), strong = document.createElement("strong");
-    title.textContent = label; strong.textContent = `${number(value)}${suffix}`;
-    signal.append(title, strong); $("runSignals").append(signal);
+  const measurements = metricMeasurements(rows);
+  for (const group of ["performance", "hardware"]) {
+    const list = $(group + "Signals");
+    list.replaceChildren();
+    for (const [label, value] of measurements[group]) {
+      const item = document.createElement("div"), term = document.createElement("dt"), detail = document.createElement("dd");
+      term.textContent = label; detail.textContent = value;
+      detail.className = value === "—" || value === "— / —" ? "unavailable" : "";
+      item.append(term, detail); list.append(item);
+    }
   }
+  $("measurementContext").textContent = isBusy(currentJob)
+    ? "Latest measurements reported by this job. — means the trainer has not supplied a value."
+    : "Recorded measurements from this finished job; these are not current machine readings. — means no value was supplied.";
+}
+
+function selectInspectionTab(name) {
+  if (currentJob) tabs.set(currentJob.id, name);
+  for (const item of inspectionPanels) {
+    $(item + "Panel").hidden = item !== name;
+    $(item + "Tab").setAttribute("aria-selected", String(item === name));
+    $(item + "Tab").tabIndex = item === name ? 0 : -1;
+  }
+  if (name === "console") renderLog();
 }
 
 function renderLog() {
@@ -141,9 +159,21 @@ export function renderOutputs(job, [logs, metrics, artifacts]) {
   fileTruncated = artifacts.status === "fulfilled" && artifacts.value.truncated;
   fileError = artifacts.status === "rejected" ? `Artifacts unavailable: ${artifacts.reason.message}` : "";
   renderFiles();
+  // Only change panels for a new selection. Polling never moves focus or tabs.
+  if (switched) selectInspectionTab(tabs.get(job.id) || "overview");
 }
 
 export function bindOutputTools() {
+  for (const [index, name] of inspectionPanels.entries()) {
+    $(name + "Tab").onclick = () => selectInspectionTab(name);
+    $(name + "Tab").onkeydown = event => {
+      const next = event.key === "Home" ? 0 : event.key === "End" ? 2 : event.key === "ArrowRight" ? (index + 1) % 3 : event.key === "ArrowLeft" ? (index + 2) % 3 : null;
+      if (next === null) return;
+      event.preventDefault();
+      selectInspectionTab(inspectionPanels[next]);
+      $(inspectionPanels[next] + "Tab").focus();
+    };
+  }
   $("metric").onchange = () => { rememberMetric(); plot(); };
   const selectPoint = index => {
     const point = geometry.values[index];

@@ -46,9 +46,18 @@ const rows = Array.from({
 }, (_, i) => ({
   step: (i + 1) * 10,
   loss: +(2.4 * Math.exp(-i / 23) + .19 + .018 * Math.sin(i * 1.7)).toFixed(4),
-  progress_percent: +((i + 1) / 1.2).toFixed(1),
+  total_steps: 2500,
+  progress_percent: +((i + 1) / 2.5).toFixed(1),
   seconds_per_step: 1.8,
+  steps_per_second: 0.556,
+  eta_seconds: 2340,
+  images_seen: (i + 1) * 80,
   gpu_vram_mb: 11240,
+  gpu_usage_pct: 94,
+  gpu_temp_c: 68,
+  gpu_board_power_w: 192,
+  process_ram_mb: 16320,
+  process_cpu_pct: 18,
   accuracy: +(.92 - .65 * Math.exp(-i / 30)).toFixed(4)
 }));
 const log = ['[studio] Started train in /home/you/projects/demo-trainer', '[trainer] Checkpoints and metrics → STUDIO_OUTPUT_DIR', '', ...rows.slice(-9).map(row => `step=${row.step}  loss=${row.loss.toFixed(4)}  accuracy=${row.accuracy.toFixed(4)}`), '', '[trainer] Checkpoint saved: checkpoints/latest.json'].join('\n');
@@ -141,22 +150,30 @@ try {
   await page.locator('#metric').selectOption('loss');
   await page.mouse.move(0, 0);
   await page.screenshot({
-    path: fileURLToPath(new URL('dashboard.png', output))
+    path: fileURLToPath(new URL('dashboard.png', output)), fullPage: true
   });
+  await page.locator('#consoleTab').click();
+  await page.screenshot({ path: fileURLToPath(new URL('console.png', output)) });
+  await page.locator('#filesTab').click();
+  await page.screenshot({ path: fileURLToPath(new URL('files.png', output)) });
+  await page.locator('#overviewTab').click();
   await page.locator('#addProject').click();
   await page.screenshot({
     path: fileURLToPath(new URL('project-setup.png', output))
   });
   await page.locator('#closeEditor').click();
-  await page.setViewportSize({
-    width: 390,
-    height: 844
-  });
+  await page.setViewportSize({ width: 1280, height: 800 });
   assert.equal(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth), false);
-  await page.screenshot({
-    path: fileURLToPath(new URL('mobile.png', output)),
-    fullPage: true
-  });
+  await page.screenshot({ path: fileURLToPath(new URL('desktop-compact.png', output)) });
+  jobs[0].state = 'stopped'; jobs[0].has_live_processes = false; jobs[0].finished_at = '2026-10-20T14:24:00Z';
+  await page.locator('#consoleTab').click();
+  await page.locator('#refresh').click();
+  await page.waitForFunction(() => !document.getElementById('modeResume').disabled);
+  await page.locator('#modeResume').check();
+  await page.locator('#command').selectOption('resume');
+  await page.locator('#launchDefinition summary').click();
+  await page.setViewportSize({ width: 1440, height: 1120 });
+  await page.screenshot({ path: fileURLToPath(new URL('launch-resume.png', output)), fullPage: true });
   assert.deepEqual(errors, []);
   console.log('Captured documentation previews with illustrative demo data.');
 } finally {

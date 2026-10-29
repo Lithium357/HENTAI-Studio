@@ -2,6 +2,7 @@ import {
   isBusy
 } from "./state.js";
 import { renderOutputs } from "./output-ui.js";
+import { renderLaunch } from "./launch.js";
 export const $ = id => document.getElementById(id);
 
 export function selectOptions(select, values, selected) {
@@ -12,7 +13,7 @@ export function selectOptions(select, values, selected) {
 }
 
 export function renderControls(state) {
-  $("start").disabled = !state.canStart;
+  renderLaunch(state);
   const target = state.stopTarget;
   $("stop").disabled = !state.canStop;
   $("stop").classList.toggle("available", state.canStop);
@@ -23,12 +24,8 @@ export function renderControls(state) {
     : target?.state === "stopping" ? "Stop requested. Waiting for the process tree to exit."
     : isBusy(target) ? "Stops this job’s process tree. A final checkpoint is not guaranteed."
     : target ? `This job is ${target.state}. No active process to stop.` : "Select an active job to stop it.";
-  $("start").title = state.startReason;
-  $("launchHint").textContent = state.project ? state.startReason : "";
   $("editProject").disabled = !state.canEdit;
   $("removeProject").disabled = !state.canEdit;
-  $("resume").disabled = !state.canResume;
-  if (!state.canResume) $("resume").checked = false;
   $("addProject").disabled = state.busy || !state.connected || !!state.issues.length;
   $("emptyAdd").disabled = $("addProject").disabled;
   const notices = [state.actionError, state.connectionError,
