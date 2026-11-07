@@ -44,7 +44,7 @@ Studio manages external processes, so your projects keep their own code, depende
 | Register any local project directory. | Launch named commands in the project’s own environment. | Follow console output and any numeric metric. |
 | Keep separate commands for training, evaluation, or resume. | Run independent projects concurrently, with one active job per project. | Download checkpoints and files from each job’s output directory. |
 
-Studio runs independently of [HENTAI](https://github.com/Lithium357/HENTAI) and [Lucy](https://github.com/Lithium357/LUCY-ERP). They can be managed like any other external project. The default installation needs no training libraries. Optional [scratch LLM support](docs/LLM.md) adds a local trainer and checkpoint chat tester.
+The default installation needs no training libraries. Optional [scratch LLM support](docs/LLM.md) adds a local trainer and checkpoint chat tester.
 
 ## Get started
 
