@@ -10,27 +10,54 @@ namespace HENTAIStudio;
 
 internal static class Program
 {
-    private const string MutexName = @"Local\HENTAIStudio.Native.App";
-
     [STAThread]
-    private static void Main()
+    private static void Main(string[] args)
     {
-        using var mutex = new Mutex(true, MutexName, out var firstInstance);
-        if (!firstInstance)
+        ApplicationConfiguration.Initialize();
+        var address = Environment.GetEnvironmentVariable("STUDIO_URL") ?? "http://127.0.0.1:7860/";
+        var connectOnly = true;
+        if (args is ["--connect", var endpoint])
         {
-            MessageBox.Show("HENTAI Studio is already running.", "HENTAI Studio",
-                MessageBoxButtons.OK, MessageBoxIcon.Information);
+            address = endpoint;
+        }
+        else if (args.Length == 0 || args is ["--pick-port", _])
+        {
+            var defaultPort = Uri.TryCreate(address, UriKind.Absolute, out var configured)
+                && configured.Port > 0 ? configured.Port : 7860;
+            if (args.Length == 2 && (!int.TryParse(args[1], out defaultPort) || defaultPort is < 1 or > 65535))
+            {
+                MessageBox.Show("Choose a port from 1 to 65535.", "HENTAI Studio");
+                return;
+            }
+
+            using var picker = new PortPicker(defaultPort);
+            if (picker.ShowDialog() != DialogResult.OK) return;
+            address = $"http://127.0.0.1:{picker.Port}/";
+            connectOnly = !picker.StartLocalBackend;
+        }
+        else
+        {
+            MessageBox.Show("Usage: HENTAI Studio.exe [--pick-port PORT | --connect http://127.0.0.1:PORT/]",
+                "HENTAI Studio", MessageBoxButtons.OK, MessageBoxIcon.Information);
             return;
         }
 
-        ApplicationConfiguration.Initialize();
-        Application.Run(new StudioForm());
+        if (!Uri.TryCreate(address, UriKind.Absolute, out var dashboard) || !dashboard.IsLoopback
+            || dashboard.Scheme != "http" || dashboard.AbsolutePath != "/" || dashboard.Query.Length != 0
+            || dashboard.UserInfo.Length != 0 || dashboard.Fragment.Length != 0)
+        {
+            MessageBox.Show("Use an HTTP loopback address such as http://127.0.0.1:7860/.",
+                "HENTAI Studio", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            return;
+        }
+        Application.Run(new StudioForm(dashboard, connectOnly));
     }
 }
 
 internal sealed class StudioForm : Form
 {
-    private readonly Uri dashboard = new(Environment.GetEnvironmentVariable("STUDIO_URL") ?? "http://127.0.0.1:7860/");
+    private readonly Uri dashboard;
+    private readonly bool connectOnly;
     private Process? backend;
     private string backendLog = "";
     private readonly WebView2 browser = new() { Dock = DockStyle.Fill };
@@ -45,19 +72,75 @@ internal sealed class StudioForm : Form
         Text = "Starting HENTAI Studio…"
     };
 
-    public StudioForm()
+    public StudioForm(Uri dashboard, bool connectOnly)
     {
-        Text = "HENTAI Studio";
+        this.dashboard = dashboard;
+        this.connectOnly = connectOnly;
+        Text = $"HENTAI Studio — port {dashboard.Port}";
         StartPosition = FormStartPosition.CenterScreen;
-        MinimumSize = new Size(1000, 700);
-        Size = new Size(1500, 960);
+        AutoScaleDimensions = new SizeF(96, 96);
+        AutoScaleMode = AutoScaleMode.Dpi;
+        MinimumSize = new Size(360, 340);
+        Size = new Size(1100, 760);
+        Load += (_, _) =>
+        {
+            var work = Screen.FromControl(this).WorkingArea;
+            Size = new Size(Math.Min(Width, work.Width), Math.Min(Height, work.Height));
+        };
         BackColor = Color.FromArgb(9, 11, 14);
         Icon = Icon.ExtractAssociatedIcon(Application.ExecutablePath);
 
         loadingPanel.Controls.Add(statusLabel);
         Controls.Add(browser);
         Controls.Add(loadingPanel);
+        var menu = new MenuStrip();
+        menu.Items.Add("New window…", null, (_, _) => OpenNewWindow());
+        var zoom = new ToolStripMenuItem("Zoom");
+        foreach (var percent in new[] { 70, 80, 90, 100, 110, 125 })
+        {
+            var item = new ToolStripMenuItem($"{percent}%") { Checked = percent == 100 };
+            item.Click += (_, _) =>
+            {
+                if (browser.CoreWebView2 is not null)
+                    browser.ZoomFactor = percent / 100.0;
+            };
+            zoom.DropDownItems.Add(item);
+        }
+        browser.ZoomFactorChanged += (_, _) =>
+        {
+            zoom.Text = $"Zoom ({browser.ZoomFactor:P0})";
+            foreach (ToolStripMenuItem item in zoom.DropDownItems)
+                item.Checked = item.Text == $"{browser.ZoomFactor * 100:0}%";
+        };
+        menu.Items.Add(zoom);
+        MainMenuStrip = menu;
+        Controls.Add(menu);
+        menu.BringToFront();
+        KeyPreview = true;
+        KeyDown += (_, args) =>
+        {
+            if (args.Control && args.KeyCode == Keys.N)
+            {
+                args.SuppressKeyPress = true;
+                OpenNewWindow();
+            }
+        };
         Shown += async (_, _) => await InitializeAsync();
+    }
+
+    private void OpenNewWindow()
+    {
+        try
+        {
+            var start = new ProcessStartInfo(Application.ExecutablePath);
+            start.ArgumentList.Add("--pick-port");
+            start.ArgumentList.Add(dashboard.Port.ToString());
+            Process.Start(start)?.Dispose();
+        }
+        catch (Exception error)
+        {
+            MessageBox.Show(this, error.Message, "Could not open a new Studio window");
+        }
     }
 
     private async Task InitializeAsync()
@@ -68,6 +151,11 @@ internal sealed class StudioForm : Form
                 throw new InvalidOperationException("STUDIO_URL must be an http:// loopback address.");
             if (!await DashboardReadyAsync())
             {
+                if (connectOnly)
+                {
+                    ShowError($"Studio is not responding at {dashboard.Authority}. Start the backend or SSH tunnel, then reopen this window.");
+                    return;
+                }
                 using var portCheck = new TcpClient();
                 try
                 {
@@ -162,13 +250,20 @@ internal sealed class StudioForm : Form
     {
         try
         {
-            using var client = new HttpClient { Timeout = TimeSpan.FromSeconds(1) };
+            using var client = new HttpClient { Timeout = TimeSpan.FromSeconds(5) };
             using var response = await client.GetAsync(new Uri(dashboard, "/api/health"));
             if (!response.IsSuccessStatusCode) return false;
             using var document = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
-            return document.RootElement.ValueKind == JsonValueKind.Object
-                && document.RootElement.TryGetProperty("application", out var application)
-                && application.ValueKind == JsonValueKind.String && application.GetString() == "hentai-studio";
+            var health = document.RootElement;
+            if (health.ValueKind != JsonValueKind.Object
+                || !health.TryGetProperty("application", out var application)
+                || application.ValueKind != JsonValueKind.String || application.GetString() != "hentai-studio")
+                return false;
+
+            var cloud = health.TryGetProperty("location", out var location)
+                && location.ValueKind == JsonValueKind.String && location.GetString() == "cloud";
+            Text = $"HENTAI Studio — port {dashboard.Port} - {(cloud ? "Cloud" : "Local")}";
+            return true;
         }
         catch (Exception error) when (error is HttpRequestException or TaskCanceledException or JsonException)
         {

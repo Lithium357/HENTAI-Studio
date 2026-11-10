@@ -14,6 +14,12 @@ def _parser() -> argparse.ArgumentParser:
     serve.add_argument("--host", default="127.0.0.1")
     serve.add_argument("--port", type=int, default=7860)
     serve.add_argument(
+        "--location",
+        choices=("local", "cloud"),
+        default="local",
+        help="label this backend in Studio windows",
+    )
+    serve.add_argument(
         "--log-file", type=Path, help="append server logs to a file (desktop launcher)"
     )
     return parser
@@ -29,6 +35,7 @@ def main(argv: list[str] | None = None) -> int:
             args.host,
             args.port,
             args.log_file.expanduser().resolve() if args.log_file else None,
+            location=args.location,
         )
     except (RuntimeError, OSError) as error:
         _parser().exit(1, f"Studio could not start: {error}\n")

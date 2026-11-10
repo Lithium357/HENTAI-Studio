@@ -187,3 +187,13 @@ def test_workspace_corruption_is_reported_without_crashing_dashboard(client, app
     assert response.json()["issues"][0]["resource"] == "projects/broken.json"
     assert client.get("/api/projects").json() == {"items": [], "next_cursor": None}
     assert client.get("/").status_code == 200
+
+
+@pytest.mark.parametrize("location", ["local", "cloud"])
+def test_health_reports_backend_location(tmp_path, location):
+    with TestClient(
+        create_app(tmp_path, location=location), base_url="http://127.0.0.1"
+    ) as client:
+        response = client.get("/api/health")
+    assert response.status_code == 200
+    assert response.json()["location"] == location

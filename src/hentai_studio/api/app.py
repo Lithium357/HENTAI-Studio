@@ -12,10 +12,15 @@ from ..llm.chat import ChatService
 from .errors import register_error_handlers
 from .middleware import LocalRequests, RequestLimits, ResponseHeaders
 from .routes import chat, jobs, projects
-from .schemas import ErrorResponse, Health
+from .schemas import ErrorResponse, Health, StudioLocation
 
 
-def create_app(workspace: Path | str, *, host: str = "127.0.0.1") -> FastAPI:
+def create_app(
+    workspace: Path | str,
+    *,
+    host: str = "127.0.0.1",
+    location: StudioLocation = "local",
+) -> FastAPI:
     service = Workspace(Path(workspace))
     chat_service = ChatService(service)
     service.change_guards.append(chat_service.require_project_editable)
@@ -72,6 +77,7 @@ def create_app(workspace: Path | str, *, host: str = "127.0.0.1") -> FastAPI:
     def health():
         issues = service.issues()
         return Health(
+            location=location,
             status="degraded" if issues else "ok",
             issues=issues,
             version=__version__,

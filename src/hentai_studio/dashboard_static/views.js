@@ -33,6 +33,9 @@ export function renderControls(state) {
   ].filter(Boolean);
   $("notice").textContent = notices.join("\n");
   $("notice").hidden = !notices.length;
+  const location = state.health?.location === "cloud" ? "Cloud" : "Local";
+  $("studioLocation").textContent = location.toUpperCase();
+  document.title = `HENTAI Studio - ${location}`;
   $("connection").dataset.connected = String(state.connected);
   $("connection").title = state.connected ? "Studio is connected" : "Studio is disconnected";
   $("connection").textContent = state.connected ? `Connected · v${state.health?.version || ""}` : "Disconnected";

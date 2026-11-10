@@ -16,6 +16,10 @@ def test_cli_needs_only_a_workspace(tmp_path, monkeypatch):
         7860,
         None,
     )
+    assert run.call_args.kwargs == {"location": "local"}
+    with patch("hentai_studio.studio.run_studio") as run:
+        assert main(["serve", "--location", "cloud"]) == 0
+    assert run.call_args.kwargs == {"location": "cloud"}
 
 
 def test_application_imports_without_any_training_packages():

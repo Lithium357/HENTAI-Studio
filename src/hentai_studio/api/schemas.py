@@ -30,7 +30,11 @@ class ErrorResponse(Model):
     error: ErrorDetail
 
 
+StudioLocation = Literal["local", "cloud"]
+
+
 class Health(Model):
+    location: StudioLocation = "local"
     application: Literal["hentai-studio"] = "hentai-studio"
     status: Literal["ok", "degraded"] = "ok"
     version: str
