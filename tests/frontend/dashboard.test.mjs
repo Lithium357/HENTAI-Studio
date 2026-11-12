@@ -225,3 +225,12 @@ test("browser client follows pages and uses PATCH and the canonical job routes",
   await api.jobs.start("one", "resume", "old-job");
   assert.equal(calls.at(-1).path, "/api/jobs/old-job/resume");
 });
+
+test("reset step counters plot in recording order without losing samples", () => {
+  const rows = [{step: 1, loss: 4}, {step: 2, loss: 3}, {step: 1, loss: 2}, {step: 2, loss: 1}];
+  const result = metricGeometry(rows, "loss");
+  assert.equal(result.xLabel, "Sample");
+  assert.deepEqual(result.values.map(p => [p.x, p.step, p.y]), [[1, 1, 4], [2, 2, 3], [3, 1, 2], [4, 2, 1]]);
+  assert.ok(result.values.every((p, i) => !i || p.px > result.values[i - 1].px));
+  assert.equal(metricGeometry([{step: 2, loss: 4}, {accuracy: 1}], "loss").xLabel, "Step");
+});

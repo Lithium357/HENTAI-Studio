@@ -1,12 +1,16 @@
 export function metricGeometry(rows, key, width = 600, height = 150) {
-  const values = rows.map((row, index) => ({
-    x: Number.isFinite(row.step) ? row.step : index,
+  const values = rows.filter(row => Number.isFinite(row[key])).map(row => ({
+    step: row.step,
     y: row[key]
-  })).filter(p => Number.isFinite(p.y));
+  }));
   if (!values.length) return {
     path: "", values: [],
     summary: "No metrics yet."
   };
+  // Preserve chronological order when a trainer starts its step counter over.
+  const useSteps = values.every((point, i) => Number.isFinite(point.step)
+    && (!i || point.step >= values[i - 1].step));
+  values.forEach((point, i) => { point.x = useSteps ? point.step : i + 1; });
   const xs = values.map(p => p.x),
     ys = values.map(p => p.y);
   const minX = Math.min(...xs),
@@ -20,7 +24,7 @@ export function metricGeometry(rows, key, width = 600, height = 150) {
   const path = values.map((p, i) => `${i ? "L" : "M"}${p.px.toFixed(1)},${p.py.toFixed(1)}`).join(" ");
   return {
     path, values, minX, maxX, minY, maxY,
-    xLabel: rows.every(row => Number.isFinite(row.step)) ? "Step" : "Sample",
+    xLabel: useSteps ? "Step" : "Sample",
     summary: `${key}: ${ys.at(-1).toPrecision(5)} · ${values.length} points · range ${minY.toPrecision(4)}–${maxY.toPrecision(4)}`
   };
 }

@@ -41,7 +41,8 @@ function inspect(index) {
   if (!point) { $("pointReadout").textContent = "No points to inspect"; return; }
   $("metricPoint").setAttribute("cx", point.px);
   $("metricPoint").setAttribute("cy", point.py);
-  const label = `${geometry.xLabel} ${number(point.x)} · ${$("metric").value}: ${number(point.y)}`;
+  const step = geometry.xLabel === "Sample" && Number.isFinite(point.step) ? ` (step ${number(point.step)})` : "";
+  const label = `${geometry.xLabel} ${number(point.x)}${step} · ${$("metric").value}: ${number(point.y)}`;
   $("pointReadout").textContent = label;
   $("metricScrubber").setAttribute("aria-valuetext", label);
 }
