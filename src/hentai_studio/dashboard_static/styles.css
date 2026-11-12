@@ -552,6 +552,7 @@ main {
 }
 
 .job-item {
+  flex-shrink: 0;
   width: 100%;
   display: block;
   text-align: left;
@@ -1137,8 +1138,7 @@ input {
 
   .job-item {
     min-width: 180px;
-    width: 180px;
-    flex-shrink: 0
+    width: 180px
   }
 
   .job-row {
