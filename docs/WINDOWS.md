@@ -35,6 +35,8 @@ Closing a window cancels that window's pending API requests. It does not send a 
 
 ## Local backend configuration
 
+The **Hardware** tab reads live CPU, RAM, and GPU telemetry from the selected backend, including NVIDIA, AMD, and Intel adapters. It requires Studio backend 0.8 or newer. See [Hardware monitoring](HARDWARE.md) for sensor availability and remote server updates. Missing hardware readings do not disable job controls.
+
 Optional environment overrides: `STUDIO_EXECUTABLE` (backend executable), `STUDIO_WORKSPACE` (workspace directory), and `STUDIO_URL` (default loopback URL/port). When local startup is explicitly selected, the app looks for `backend/Scripts/hentai-studio.exe` beside itself, then uses PATH. Backend logs go to `<workspace>/logs/server.log`.
 
 The browser dashboard remains available separately from the backend for browser users. The Windows app does not load it.

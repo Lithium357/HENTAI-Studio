@@ -9,7 +9,7 @@
     <AssemblyName>HENTAI Studio</AssemblyName>
     <RootNamespace>HENTAIStudio</RootNamespace>
     <ApplicationIcon>HENTAIStudio.ico</ApplicationIcon>
-    <Version>0.8.0</Version>
+    <Version>0.8.1</Version>
     <Authors>Lithium357</Authors>
     <Product>HENTAI Studio</Product>
     <Description>Standalone local training project manager</Description>

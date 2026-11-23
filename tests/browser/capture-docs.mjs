@@ -110,6 +110,7 @@ try {
       workspace: '/home/you/.hentai-studio',
       issues: []
     };
+    else if (path === '/api/hardware') json = { scope: 'backend_host', hostname: 'demo-host', platform: 'Linux', collecting: true, gpus: [], issues: [] };
     else if (path === '/api/projects') json = {
       items: [project],
       next_cursor: null

@@ -47,6 +47,8 @@ Run `npm run test:history` after installing Playwright. The check serves the rea
 
 ## Native Windows acceptance
 
+Hardware provider tests cover NVIDIA/Intel CSV parsing, AMD/Intel sysfs units, Windows adapter-LUID joins, per-engine utilization, missing sensors, cache freshness, and nonblocking reads. Native checks render the hardware table with all three vendors using the real Windows application message loop. `tests/browser/native_check.py` serializes fixture request logging across threads and times out hung clients.
+
 ```powershell
 dotnet build windows/HENTAIStudio.Tests/HENTAIStudio.Tests.csproj --configuration Release
 python tests/browser/native_check.py windows/HENTAIStudio.Tests/bin/Release/net8.0-windows/HENTAIStudio.Tests.exe

@@ -38,6 +38,7 @@ internal sealed class StudioForm : Form
     private readonly Dictionary<string, string> commandChoices = [];
     private readonly ImageList rowHeight = new() { ImageSize = new Size(1, 34) };
     private readonly NativeChat chat;
+    private readonly NativeHardware hardware;
     private readonly TabPage chatTab;
     private List<JsonObject> projects = [], jobs = [], metricRows = [], files = [];
     private string? projectId, jobId;
@@ -56,6 +57,7 @@ internal sealed class StudioForm : Form
         Font = new Font("Segoe UI", 9.5f); MinimumSize = new Size(440, 380); Size = new Size(1120, 800); StartPosition = FormStartPosition.CenterScreen;
         Icon = Icon.ExtractAssociatedIcon(Application.ExecutablePath);
         chat = new NativeChat(api, lifetime.Token, () => RefreshAsync()); chatTab = new TabPage("Chat tester"); chatTab.Controls.Add(chat);
+        hardware = new NativeHardware(api, lifetime.Token);
         var menu = new MenuStrip();
         menu.Items.Add("New window…", null, (_, _) => SafeNewWindow());
         menu.Items.Add("Refresh", null, async (_, _) => await RefreshAsync());
@@ -151,6 +153,7 @@ internal sealed class StudioForm : Form
         var artifacts = new TabPage("Files"); var filePanel = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 1, RowCount = 3 };
         filePanel.RowStyles.Add(new(SizeType.Absolute, 36)); filePanel.RowStyles.Add(new(SizeType.Percent, 100)); filePanel.RowStyles.Add(new(SizeType.AutoSize));
         filePanel.Controls.Add(fileFilter, 0, 0); filePanel.Controls.Add(fileList, 0, 1); filePanel.Controls.Add(Flow(download), 0, 2); artifacts.Controls.Add(filePanel); tabs.TabPages.Add(artifacts);
+        var hardwareTab = new TabPage("Hardware"); hardwareTab.Controls.Add(hardware); tabs.TabPages.Add(hardwareTab);
     }
     private void FitLayout()
     {
@@ -196,6 +199,7 @@ internal sealed class StudioForm : Form
     }
     public async Task RefreshAsync()
     {
+        _ = hardware.RefreshAsync();
         if (refreshing || closing) return;
         refreshing = true; var version = revision;
         using var timeout = CancellationTokenSource.CreateLinkedTokenSource(lifetime.Token); timeout.CancelAfter(TimeSpan.FromSeconds(12));
@@ -322,7 +326,7 @@ internal sealed class StudioForm : Form
         if (next is not null) metric.SelectedItem = next;
         RenderChart();
         signals.Rows.Clear();
-        foreach (var (key, label) in new[] { ("step", "Step"), ("total_steps", "Total steps"), ("steps_per_second", "Steps / second"), ("seconds_per_step", "Seconds / step"), ("progress_percent", "Progress %"), ("gpu_usage_pct", "GPU usage %"), ("gpu_vram_mb", "VRAM MB"), ("process_ram_mb", "Host RAM MB") })
+        foreach (var (key, label) in new[] { ("step", "Step"), ("total_steps", "Total steps"), ("steps_per_second", "Steps / second"), ("seconds_per_step", "Seconds / step"), ("progress_percent", "Progress %"), ("gpu_usage_pct", "Recorded GPU usage %"), ("gpu_vram_mb", "Recorded VRAM MB"), ("process_ram_mb", "Recorded trainer RAM MB") })
         { var value = rows.LastOrDefault(row => row.Number(key).HasValue)?.Number(key); signals.Rows.Add(label, value?.ToString("G6") ?? "—"); }
     }
     private void RenderChart()

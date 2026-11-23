@@ -73,6 +73,7 @@ try {
       workspace: '/demo/workspace',
       issues: []
     };
+    else if (path === '/api/hardware') json = { scope: 'backend_host', hostname: 'demo-host', platform: 'Linux', collecting: true, gpus: [], issues: [] };
     else if (path === '/api/projects') json = {
       items: [],
       next_cursor: null

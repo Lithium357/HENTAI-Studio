@@ -18,6 +18,7 @@ import {
 } from "./views.js";
 import { bindOutputTools } from "./output-ui.js";
 import { bindLaunch } from "./launch.js";
+import { bindHardware } from "./hardware-ui.js";
 import {
   bindProjectEditor
 } from "./editor.js";
@@ -25,6 +26,7 @@ import {
 const state = new WorkspaceState();
 bindLaunch(() => state, render);
 bindOutputTools();
+bindHardware();
 const chat = bindChat(() => state);
 let controller;
 const callbacks = {

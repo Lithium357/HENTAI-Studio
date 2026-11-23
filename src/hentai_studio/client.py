@@ -29,6 +29,10 @@ def _id(value):
 
 
 class StudioClient:
+    def hardware(self):
+        """Latest cached readings from the backend machine, with freshness and provider issues."""
+        return self.request("GET", "/api/hardware")
+
     def __init__(self, base_url="http://127.0.0.1:7860", *, timeout=15):
         parsed = urlsplit(base_url)
         if (

@@ -19,9 +19,23 @@ def main():
         )
         try:
             port = json.loads(server.stdout.readline())["port"]
-            subprocess.run([str(executable), f"http://127.0.0.1:{port}/"], check=True)
+            try:
+                subprocess.run(
+                    [str(executable), f"http://127.0.0.1:{port}/"],
+                    check=True,
+                    timeout=120,
+                )
+            except (subprocess.CalledProcessError, subprocess.TimeoutExpired):
+                print(
+                    "Recent fixture requests:\n"
+                    + "\n".join(log.read_text(encoding="utf-8").splitlines()[-30:]),
+                    flush=True,
+                )
+                raise
             requests = log.read_text(encoding="utf-8").splitlines()
-            assert requests and all(" /api/" in line for line in requests)
+            assert requests and all(" /api/" in line for line in requests), repr(
+                requests
+            )
             print("Native client used JSON API routes only; no dashboard assets.")
         finally:
             server.terminate()

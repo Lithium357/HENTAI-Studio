@@ -1,10 +1,12 @@
-# Studio API 0.7
+# Studio API 0.8
 
 Register a project once, start its commands as jobs, and follow the returned job URL. The API works without any model framework or training-project import. Start `hentai-studio serve`; the default server is `http://127.0.0.1:7860`.
 
 [Interactive docs](http://127.0.0.1:7860/api/docs) describe every request and response. OpenAPI is `/api/openapi.json`, with stable operation IDs for generated clients. JSON fields use snake_case. Internal process IDs, full project snapshots and configured environment values are excluded from job responses.
 
 ## Python: the complete workflow
+
+`GET /api/hardware` (or `studio.hardware()`) returns live backend-host CPU, RAM, and per-GPU readings independently of any job. It includes provider issues, sample time, age, initialization and stale flags. Unsupported sensor values are `null`. See [Hardware monitoring](HARDWARE.md) for the vendor/platform matrix and deployment requirements.
 
 The installed package provides a standard-library client; requests/httpx are not required:
 

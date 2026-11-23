@@ -137,6 +137,7 @@ The included Python client uses the standard library. The [API guide](docs/API.m
 | [API & Python client](docs/API.md) | Request examples and the complete client workflow |
 | [Command line](docs/CLI.md) | Server options and workspace configuration |
 | [Windows app](docs/WINDOWS.md) | Build, installation, and backend selection |
+| [Hardware monitoring](docs/HARDWARE.md) | Live backend CPU/RAM and NVIDIA, AMD, and Intel GPU support |
 | [Architecture](docs/ARCHITECTURE.md) | Application boundaries and process ownership |
 | [Development](docs/DEVELOPMENT.md) | Tests, browser checks, and packaging |
 | [Migration](docs/MIGRATION.md) | Changes from earlier bundled versions |

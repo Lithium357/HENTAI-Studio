@@ -2,11 +2,13 @@
 
 import json
 import sys
+import threading
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import parse_qs, urlsplit
 
 request_log = Path(sys.argv[1]) if len(sys.argv) > 1 else None
+log_lock = threading.Lock()
 names = [
     "Pakao 498M — full cleaned corpus · 100M ceiling",
     "Morderca 498M with Sample-Code (attempt 4)",
@@ -74,13 +76,45 @@ class API(BaseHTTPRequestHandler):
 
     def log_request_path(self):
         if request_log:
-            with request_log.open("a", encoding="utf-8") as log:
+            with log_lock, request_log.open("a", encoding="utf-8") as log:
                 log.write(self.command + " " + self.path + "\n")
 
     def do_GET(self):
         self.log_request_path()
         path = urlsplit(self.path).path
         q = parse_qs(urlsplit(self.path).query)
+        if path == "/api/hardware":
+            return self.response(
+                200,
+                {
+                    "scope": "backend_host",
+                    "hostname": "training-host",
+                    "platform": "Linux",
+                    "sampled_at": "2026-11-23T12:00:00Z",
+                    "age_seconds": 1,
+                    "stale": False,
+                    "collecting": False,
+                    "cpu_pct": 12,
+                    "ram_used_mb": 4096,
+                    "ram_total_mb": 32768,
+                    "gpus": [
+                        {
+                            "id": vendor,
+                            "name": vendor + " test GPU",
+                            "vendor": vendor,
+                            "source": "fixture",
+                            "utilization_pct": 0,
+                            "memory_used_mb": 1024,
+                            "memory_total_mb": 16384,
+                            "shared_memory_mb": None,
+                            "temperature_c": None,
+                            "power_w": None,
+                        }
+                        for vendor in ("NVIDIA", "AMD", "Intel")
+                    ],
+                    "issues": [],
+                },
+            )
         if path == "/api/health":
             return self.response(
                 200,

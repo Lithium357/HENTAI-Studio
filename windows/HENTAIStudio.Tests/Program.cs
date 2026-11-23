@@ -51,45 +51,63 @@ internal static class NativeTests
         Console.WriteLine($"Native desktop checks passed: {checks}");
     }
     private static IEnumerable<Control> Descendants(Control parent) => parent.Controls.Cast<Control>().SelectMany(child => new[] { child }.Concat(Descendants(child)));
-    private static void Until(Func<bool> ready)
+    private static async Task UntilAsync(Func<bool> ready)
     {
         var deadline = DateTime.UtcNow.AddSeconds(15);
-        while (!ready()) { Application.DoEvents(); Thread.Sleep(10); if (DateTime.UtcNow > deadline) throw new Exception("Native UI operation timed out"); }
-        Application.DoEvents();
+        while (!ready()) { await Task.Delay(10); if (DateTime.UtcNow > deadline) throw new Exception("Native UI operation timed out"); }
     }
     private static void CheckWindow(Uri origin)
     {
         using var form = new StudioForm(origin, true);
-        form.Show();
-        Until(() => form.Text.Contains("Cloud"));
+        Exception? failure = null;
+        form.Shown += async (_, _) =>
+        {
+            try { await CheckWindowControls(form); }
+            catch (Exception error) { failure = error; }
+            finally { form.Close(); }
+        };
+        Application.Run(form);
+        if (failure is not null) throw new Exception("Native window check failed", failure);
+    }
+    private static async Task CheckWindowControls(StudioForm form)
+    {
+        await UntilAsync(() => form.Text.Contains("Cloud"));
         var history = Descendants(form).OfType<ListView>().First();
         Check(history.Items.Count == 13, "Native history renders all paginated jobs");
         foreach (var width in new[] { 440, 640, 960, 1400 })
         {
-            form.Size = new Size(width, 800); Application.DoEvents();
+            form.Size = new Size(width, 800); await Task.Delay(20);
             Check(history.Items[1].Bounds.Top >= history.Items[0].Bounds.Bottom, $"Native history rows do not overlap at {width}px");
         }
         var list = Descendants(form).OfType<ListBox>().Single();
+        var hardware = Descendants(form).OfType<NativeHardware>().Single();
+        var gpuGrid = Descendants(hardware).OfType<DataGridView>().Single();
+        await UntilAsync(() => gpuGrid.Rows.Count == 3);
+        Check(gpuGrid.Rows.Cast<DataGridViewRow>().Select(row => row.Cells[1].Value?.ToString()).SequenceEqual(new[] { "NVIDIA", "AMD", "Intel" }), "Live hardware renders all GPU vendors separately");
+        Check(gpuGrid.Rows[0].Cells[2].Value?.ToString() == 0.0.ToString("N1"), "Idle GPU utilization is zero");
+        Check(gpuGrid.Rows[0].Cells[6].Value?.ToString() == "—", "Missing sensors remain unavailable");
         list.SelectedIndex = 2;
         var tabs = Descendants(form).OfType<TabControl>().First();
-        Until(() => tabs.TabPages.Cast<TabPage>().Any(p => p.Text == "Chat tester"));
-        tabs.SelectedTab = tabs.TabPages.Cast<TabPage>().Single(p => p.Text == "Chat tester");
-        Until(() => Descendants(form).OfType<NativeChat>().Any());
-        var chat = Descendants(form).OfType<NativeChat>().Single();
+        await UntilAsync(() => tabs.TabPages.Cast<TabPage>().Any(p => p.Text == "Chat tester"));
+        var chatPage = tabs.TabPages.Cast<TabPage>().Single(p => p.Text == "Chat tester");
+        tabs.SelectedTab = chatPage;
+        var chat = chatPage.Controls.OfType<NativeChat>().Single();
+        await UntilAsync(() => chat.Visible);
         Button Find(string name) => Descendants(chat).OfType<Button>().Single(b => b.Text == name);
         Descendants(chat).OfType<ComboBox>().First().SelectedIndex = 1;
         Descendants(chat).OfType<TextBox>().Single(t => t.PlaceholderText == "Model directory or checkpoint-N").Text = "/demo/model";
+        await UntilAsync(() => Find("Load checkpoint").CanSelect && Find("Load checkpoint").Enabled);
+        Find("Load checkpoint").Focus();
         Find("Load checkpoint").PerformClick();
-        Until(() => Find("Send prompt").Enabled);
+        await UntilAsync(() => Find("Send prompt").Enabled);
         Check(Find("Unload model").Enabled, "Native chat enables generation after explicit model load");
         Descendants(chat).OfType<TextBox>().Single(t => t.AccessibleName == "Chat prompt").Text = "Hello native UI";
         Find("Send prompt").PerformClick();
-        Until(() => Descendants(chat).OfType<RichTextBox>().Single().Text.Contains("Local scratch reply: Hello native UI"));
+        await UntilAsync(() => Descendants(chat).OfType<RichTextBox>().Single().Text.Contains("Local scratch reply: Hello native UI"));
         Check(true, "Native chat renders the backend response");
-        Until(() => Find("Unload model").Enabled); Find("Unload model").PerformClick();
-        Until(() => Find("Load checkpoint").Enabled);
+        await UntilAsync(() => Find("Unload model").Enabled); Find("Unload model").PerformClick();
+        await UntilAsync(() => Find("Load checkpoint").Enabled);
         Check(!Find("Send prompt").Enabled, "Native chat disables generation after unload");
-        form.Close(); Application.DoEvents();
     }
     private static async Task CheckApi(Uri origin)
     {

@@ -7,6 +7,7 @@ from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
 from .. import __version__
+from ..hardware import HardwareMonitor, HardwareSnapshot
 from ..jobs.workspace import Workspace
 from ..llm.chat import ChatService
 from .errors import register_error_handlers
@@ -23,6 +24,7 @@ def create_app(
 ) -> FastAPI:
     service = Workspace(Path(workspace))
     chat_service = ChatService(service)
+    hardware = HardwareMonitor()
     service.change_guards.append(chat_service.require_project_editable)
     service.start_guards.append(chat_service.require_training_available)
 
@@ -32,6 +34,7 @@ def create_app(
         try:
             yield
         finally:
+            hardware.close()
             chat_service.close()
             service.close()
 
@@ -68,6 +71,7 @@ def create_app(
     )
     app.state.workspace = service
     app.state.chat = chat_service
+    app.state.hardware = hardware
     register_error_handlers(app)
     app.add_middleware(RequestLimits)
     app.add_middleware(LocalRequests, hosts=["localhost", "127.0.0.1", "::1", host])
@@ -84,6 +88,15 @@ def create_app(
             workspace=str(service.root),
             free_bytes=shutil.disk_usage(service.root).free,
         )
+
+    @app.get(
+        "/api/hardware",
+        response_model=HardwareSnapshot,
+        tags=["system"],
+        operation_id="get_hardware",
+    )
+    def get_hardware():
+        return hardware.snapshot()
 
     app.include_router(projects.router, prefix="/api")
     app.include_router(jobs.router, prefix="/api")

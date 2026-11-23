@@ -59,6 +59,7 @@ print('done', flush=True)
         encoding="utf-8",
     )
     with studio:
+        assert studio.hardware()["scope"] == "backend_host"
         project = studio.create_project(root, {"train": [sys.executable, "train.py"]})
         assert project["name"] == "trainer"
         assert studio.update_project(project, name="Renamed")["name"] == "Renamed"
