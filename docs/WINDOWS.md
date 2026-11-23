@@ -31,9 +31,9 @@ Use **New window…** or **Ctrl+N** for another independent connection. The titl
 
 Windows snap and ordinary resizing work down to a 440-pixel window width. Projects and job history move above the details at narrow widths. Job history uses native table rows with resizable columns, horizontal scrolling, and full-name tooltips. Long names cannot wrap into the next row. Font scaling follows Windows DPI settings.
 
-The scratch LLM editor configures local architecture, tokenizer, dataset, and training options. The native chat tester explicitly loads saved weights on the backend, supports CPU or CUDA, and keeps conversations separate by project. No remote inference provider is involved.
+The scratch LLM editor configures local architecture, tokenizer, dataset, and training options. **Test model** loads the latest complete checkpoint with one click or opt-in automatic loading. Sampling can use CPU or GPU (CUDA/ROCm), with an explicit sharing option to keep GPU training running. Loaded-model status reports the active mode; changing the choice takes effect on load/reload. Manual paths and generation settings are under Advanced options. See [scratch-model testing](LLM.md).
 
-Closing a window cancels that window's pending API requests. It does not send a stop command to trainers or shut down a backend. Use **Stop job** explicitly to stop training.
+Closing a window cancels that window's pending API requests. It does not send a stop command to trainers or shut down a backend. Use **Stop active run** explicitly to stop training.
 
 ## Local backend configuration
 

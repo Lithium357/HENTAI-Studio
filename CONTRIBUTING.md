@@ -21,7 +21,7 @@ npm test
 git diff --check
 ```
 
-The standard-library demo trainer and isolated workspaces are enough for application tests. No GPU or ML library is required. [Development](docs/DEVELOPMENT.md) covers browser acceptance, clean-wheel checks, and the optional Windows shell.
+The standard-library demo trainer and isolated workspaces are enough for application tests. No GPU or ML library is required. [Development](docs/DEVELOPMENT.md) covers browser acceptance, clean-wheel checks, and native Windows client checks.
 
 ## Keep changes reviewable
 

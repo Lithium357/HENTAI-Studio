@@ -13,6 +13,8 @@ Studio runs external commands and observes standard files. Domain/application co
 | `jobs/processes.py` | PID/creation-time verification and owned-tree termination |
 | `jobs/outputs.py` | Bounded logs, JSONL/CSV metrics and confined artifacts |
 | `llm/config.py`, `llm/chat.py` | Optional scratch profiles and explicitly owned local inference workers |
+| `llm/checkpoints.py` | Complete-checkpoint discovery and bounded weight metadata checks without ML imports |
+| `hardware.py`, `hardware_windows.py` | Background backend-host CPU/RAM/GPU sampling, provider isolation, and cached snapshots |
 | `llm/train.py`, `llm/infer.py`, `llm/data.py` | Standalone ML processes and shared local data/prompt formatting |
 | `jobs/files.py` | Atomic persistence, Windows sharing retries, timestamps and confinement |
 | `dashboard_static/state.js` | Pure selection, lifecycle and control eligibility state |
@@ -20,6 +22,7 @@ Studio runs external commands and observes standard files. Domain/application co
 | `dashboard_static/editor.js` | Registration form and validation feedback |
 | `dashboard_static/app.js` | Polling, cancellation and mutation coordination |
 | `dashboard_static/api.js`, `metrics.js`, `poller.js` | Transport, generic geometry and serialized refresh scheduling |
+| `windows/HENTAIStudio/` | Native Windows Forms client: Runs, Test model, Hardware, port selection, and JSON API transport |
 
 ## Workspace
 
@@ -49,12 +52,14 @@ Output reads are independent of lifecycle control. Metrics read recent bounded J
 
 The CLI contains only Studio server commands. Optional scratch LLM support lives in `llm/`, with local profile generation and an explicit inference service. Torch and Transformers are imported only in separate trainer/inference processes launched with the project’s selected Python interpreter; default Studio startup remains model-library independent. Historical training code remains recoverable from Git, with migration instructions in MIGRATION.md. The standalone ADLX probe source and vendored licenses remain in hardware_probe/ and vendor/ as a separate native utility; it is not packaged or loaded by the Python app.
 
-The Windows shell verifies application identity through HTTP and launches the backend with file logging. It does not own trainer lifetime or redirect backend logs through pipes that would disappear when the shell closes. Its default workspace matches the Python CLI.
+The native Windows client verifies application identity through HTTP and uses Windows controls for its interface. It does not load dashboard HTML/JavaScript or a browser engine. Optional local backend startup uses file logging; closing a window does not shut down that backend or own trainer lifetime. Its default workspace matches the Python CLI. Each window has an independent port/API connection, including SSH-forwarded cloud backends.
 
-## Public API boundary (0.6)
+## Public API boundary
 
 The app factory composes resource routers rather than defining the entire API in closures. api/routes/projects.py owns registration and partial edits; api/routes/jobs.py owns the global job collection, lifecycle and outputs. api/schemas.py defines separate public inputs/responses. api/presenters.py translates persistence Job records into compact caller resources with links/actions, keeping process identities, full snapshots and environment overrides private. api/pagination.py owns filter-scoped keyset cursors. Dependencies are explicit and operation IDs are stable in OpenAPI.
 
 client.py is a synchronous standard-library Python client. It follows pagination and exposes registration, partial updates, jobs, wait/stop/resume, logs, metrics and artifact downloads. It uses the same HTTP contract as the browser; no in-process service shortcuts or hidden job-creation retries are involved. Input DTOs, public jobs and persistence models remain distinct.
 
-The inference service owns only its own child processes. GPU inference admission and job admission share the workspace lock; a loaded GPU chat model blocks new jobs, and active jobs block GPU chat loading. CPU chat is independent of training. Conversation history lives in browser memory, while inference diagnostics are stored separately under the workspace chat directory.
+The inference service owns only its own child processes. GPU inference admission and job admission share the workspace lock. Reserved GPU sampling and training exclude each other; explicitly setting `allow_training_overlap` allows the selected GPU test model to coexist with training and permits new job admission. CPU sampling is independent of GPU admission. Conversation history lives in client memory, while inference diagnostics are stored separately under the workspace chat directory.
+
+Latest-checkpoint discovery is an explicit project-scoped operation. It validates saved weight metadata and active-save completion before selecting a candidate. Loading reuses an identical model or replaces only that project's idle inference worker; it never stops a trainer. Hardware monitoring is independent of jobs: one lazy background sampler per backend publishes cached host readings and freshness/error information to both clients.

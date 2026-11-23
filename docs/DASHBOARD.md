@@ -1,4 +1,6 @@
-# Dashboard
+# Browser dashboard
+
+This guide describes the optional browser interface. The dedicated [native Windows app](WINDOWS.md) provides Runs, Test model, and Hardware views using Windows controls.
 
 Start `hentai-studio serve --workspace /absolute/workspace` and open localhost:7860.
 
@@ -29,4 +31,4 @@ The launch section includes **Inspect launch definition**, which displays the ne
 
 Performance and hardware values are separate from the training chart. Missing values display `—`, including when only some numeric columns are supplied. Zero is a valid reading. Finished-job measurements are explicitly described as recorded values rather than current machine telemetry. On larger desktop displays, these groups sit beside the chart; on smaller desktop windows, they follow it. Console and file lists have dedicated scroll areas, while run history and inspection tabs remain accessible during desktop scrolling.
 
-Scratch LLM projects have a dedicated configuration form and a Chat tester tab for explicit local checkpoint loading and conversation testing. See [the LLM guide](LLM.md). Generic projects retain their command-based workflow.
+Scratch LLM projects have a dedicated configuration form and a Chat tester tab for latest-checkpoint loading, optional automatic loading, and conversation testing. Sampling can run on CPU or explicitly share the GPU with training. See [the LLM guide](LLM.md). Generic projects retain their command-based workflow.

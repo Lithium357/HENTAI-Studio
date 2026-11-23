@@ -87,16 +87,16 @@ To resume, select a finished job, expand **Launch a run**, select **Resume run**
 
 ## Test responses locally
 
-Select a scratch LLM project and open **Chat tester**:
+Select a scratch LLM project and open **Test model** in the native app, or **Chat tester** in the browser:
 
-1. Choose **Selected job output** and use `model` for final weights, or `checkpoint-N` for an intermediate save. Alternatively, choose **Local directory** and supply a saved model directory.
-2. Select **CPU** (default) or **GPU (CUDA / ROCm)** and click **Load checkpoint**. Loading is explicit and may take time. The local loader uses the project's configured tokenizer.
+1. Click **Load latest checkpoint**, or enable automatic loading when opening the tester. To select an exact path, expand Advanced options in the native app or **Choose a checkpoint manually** in the browser. Use `model` for final job weights, `checkpoint-N` for an intermediate save, or a saved model directory.
+2. Select **CPU** (default) or **GPU (CUDA / ROCm)** under Sampling and load/reload to apply the choice. For concurrent GPU training, explicitly enable GPU sharing. The loader uses the project's configured tokenizer.
 3. Send a prompt. Adjust the system prompt, temperature (`0` for greedy decoding), or maximum new tokens to compare responses. The full conversation is passed to the model on each turn.
 4. Use **Clear chat** to reset the conversation and **Unload model** to release the inference worker's memory.
 
-Only one chat model can be loaded in a Studio server at a time. GPU loading is blocked while a Studio job is active, and new jobs are blocked while a GPU chat model is loaded. CPU inference remains available while training, although it uses host RAM and CPU. Studio never stops a training job to make space for chat. The selected model's context window must fit the prompt plus the requested response budget.
+Only one chat model can be loaded in a Studio server at a time. Reserved GPU sampling excludes training; explicitly shared GPU sampling permits both to run. CPU inference remains available while training, using host RAM and CPU. Studio never stops a training job to make space for chat. The selected model's context window must fit the prompt plus the requested response budget.
 
-Inference runs in a separate process, with a 120-second load/response timeout and offline model loading. Its diagnostic log is `<workspace>/chat/<project-id>.log`. Chat text is held only in browser-tab memory and is not written to the workspace. Switching projects keeps their conversations separate. Closing a browser tab does not unload a model; unload explicitly or close the Studio server. Closing the server stops only its inference workers; existing training supervisors retain their normal independent lifecycle.
+Inference runs in a separate process, with a 120-second load/response timeout and offline model loading. Its diagnostic log is `<workspace>/chat/<project-id>.log`. Chat text is held in the native window's or browser tab's memory and is not written to the workspace. Switching projects keeps their conversations separate. Closing a client does not unload a model; unload explicitly or close the Studio server. Closing the server stops only its inference workers; existing training supervisors retain their normal independent lifecycle.
 
 The response is displayed when generation completes; token streaming is not implemented. The built-in chat UI waits for the current response before another model operation. An early scratch checkpoint may produce empty, repetitive, or incoherent text; the chat tester does not imply model quality.
 
@@ -123,7 +123,9 @@ Register a scratch project using the optional `llm` field on `POST /api/projects
 | Method | Route | Purpose |
 | --- | --- | --- |
 | GET | `/api/projects/{id}/chat` | Read model load status |
-| POST | `/api/projects/{id}/chat/load` | Load `{checkpoint, job_id?, device?, tokenizer?}` |
+| GET | `/api/projects/{id}/chat/checkpoints/latest` | Discover complete weights; optional `job_id` query |
+| POST | `/api/projects/{id}/chat/load-latest` | Discover/load `{job_id?, device?, tokenizer?, replace?, allow_training_overlap?}` |
+| POST | `/api/projects/{id}/chat/load` | Load `{checkpoint, job_id?, device?, tokenizer?, allow_training_overlap?}` |
 | POST | `/api/projects/{id}/chat/unload` | Release the inference worker |
 | POST | `/api/projects/{id}/chat/completions` | Generate from `{messages, temperature?, max_tokens?}` |
 

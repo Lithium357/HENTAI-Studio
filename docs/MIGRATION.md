@@ -29,3 +29,9 @@ The earlier `/api/runs`, `/api/diffusion`, and dashboard/studio CLI modes remain
 ## Optional scratch LLM support (0.7)
 
 An optional `llm` project profile adds local scratch training and checkpoint chat. This is independent of the historical bundled Lucy/HENTAI workloads. Generic project definitions remain valid; no ML package is imported by default. See [LLM.md](LLM.md). Updating backend routes requires restarting the Studio server; do not replace a running training environment or terminate an active job to update the dashboard.
+
+## Native desktop and monitoring (0.8–0.9.1)
+
+The Windows client now uses native .NET 8 controls and no longer requires WebView2. Update its executable and any shortcuts to the current build; existing workspace data is retained. The optional browser dashboard continues to use the same backend API.
+
+Update every backend independently of the desktop client. Hardware monitoring requires 0.8+, latest-checkpoint loading requires 0.9+, and `allow_training_overlap` requires 0.9.1+. Restart only the Studio API server with its existing workspace/host/port/location options. Independent training supervisors and trainers should remain running. See [the changelog](../CHANGELOG.md) and [Windows installation](WINDOWS.md).
