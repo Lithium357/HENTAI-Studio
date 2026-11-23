@@ -1,20 +1,40 @@
 # Windows desktop app
 
-Requires .NET 8 Desktop Runtime and Microsoft WebView2 Runtime. Build with:
+HENTAI Studio's Windows client is a native .NET 8 Windows Forms application. Project lists, job history, dialogs, console output, file downloads, and scratch-model chat use Windows controls. The metric chart is drawn with GDI+. The app does not embed WebView2, Chromium, HTML, or JavaScript, and does not require the WebView2 Runtime.
+
+The desktop client talks to Studio's JSON API. A backend can run on the same computer, in WSL, or on AWS through an SSH tunnel. Paths, commands, checkpoints, and training processes belong to the backend machine. HENTAI Studio does not require the HENTAI diffusion-model repository.
+
+## Build and install
+
+Requires the .NET 8 Desktop Runtime to run, or the .NET 8+ SDK to build:
 
 ```powershell
-dotnet build windows/HENTAIStudio/HENTAIStudio.csproj --configuration Release
+./windows/HENTAIStudio/build.ps1
 ```
 
-The shell uses the same default workspace as the CLI, verifies `/api/health` identifies Studio, reports occupied ports, and writes backend logs to `<workspace>/logs/server.log`. It can reconnect to an existing backend or start one without keeping a console window open.
+The resulting executable is `dist/HENTAIStudio/HENTAI Studio.exe`. Publishing produces a framework-dependent single-file application. Copy only this executable when updating the desktop client; old browser-related build artifacts are unnecessary.
 
-`windows/HENTAIStudio/build.ps1` publishes the shell only. `build.ps1 -Install -Python C:\path\to\python.exe` explicitly installs the shell, creates its own backend environment and installs Studio into it. Installation copies files without recursively deleting existing application/workspace directories.
+`build.ps1 -Install -Python C:\path\to\python.exe` installs the application, creates a private Python backend environment, and creates Desktop and Start menu shortcuts. Installation preserves application and workspace directories. Python is needed on the machine running a backend; connecting to an existing backend needs only the Windows client and .NET Desktop Runtime.
 
-Optional overrides: `STUDIO_EXECUTABLE` (backend executable), `STUDIO_WORKSPACE` (workspace directory), `STUDIO_URL` (HTTP loopback URL/port). Without an override the shell first looks for an installed `backend/Scripts/hentai-studio.exe` beside it, then uses PATH. For an existing Python installation, set `STUDIO_EXECUTABLE` to that environment's full `hentai-studio.exe` path.
+## Connect and use multiple windows
 
+Studio opens a native port picker. Enter a local backend port or a forwarded SSH port. Connecting starts no backend unless you check **Start a local Studio backend if none is running**.
 
-Use `HENTAI Studio.exe --connect http://127.0.0.1:8786/` to connect to an existing backend or SSH tunnel. This mode does not start a local backend if the connection fails.
+```powershell
+& '.\HENTAI Studio.exe' --pick-port 8786
+& '.\HENTAI Studio.exe' --connect http://127.0.0.1:8786/
+```
 
-Studio opens a port picker at startup. Select **New window…** to connect to another local backend or forwarded port without closing the current window. Each window shows its port in the title. Use `--pick-port 8786` to prefill the picker or `--connect http://127.0.0.1:8786/` to skip it. Connecting does not launch a backend unless you opt in.
+Use **New window…** or **Ctrl+N** for another independent connection. The title shows the port and the backend's Local/Cloud flag. **Refresh** or **F5** retries a failed connection. The client accepts HTTP loopback origins; use SSH forwarding for remote machines rather than exposing the backend publicly.
 
-For side-by-side use, snap Studio windows to either side of the screen. The dashboard reflows as the window narrows. Use **Zoom** in each window to fit more content or increase text size.
+Windows snap and ordinary resizing work down to a 440-pixel window width. Projects and job history move above the details at narrow widths. Job history uses native table rows with resizable columns, horizontal scrolling, and full-name tooltips. Long names cannot wrap into the next row. Font scaling follows Windows DPI settings.
+
+The scratch LLM editor configures local architecture, tokenizer, dataset, and training options. The native chat tester explicitly loads saved weights on the backend, supports CPU or CUDA, and keeps conversations separate by project. No remote inference provider is involved.
+
+Closing a window cancels that window's pending API requests. It does not send a stop command to trainers or shut down a backend. Use **Stop job** explicitly to stop training.
+
+## Local backend configuration
+
+Optional environment overrides: `STUDIO_EXECUTABLE` (backend executable), `STUDIO_WORKSPACE` (workspace directory), and `STUDIO_URL` (default loopback URL/port). When local startup is explicitly selected, the app looks for `backend/Scripts/hentai-studio.exe` beside itself, then uses PATH. Backend logs go to `<workspace>/logs/server.log`.
+
+The browser dashboard remains available separately from the backend for browser users. The Windows app does not load it.

@@ -71,7 +71,7 @@ python -m venv .venv
 .venv\Scripts\hentai-studio serve
 ```
 
-For a native window, see the [Windows desktop app guide](docs/WINDOWS.md).
+For the dedicated Windows app, see the [Windows desktop app guide](docs/WINDOWS.md). It uses native .NET controls and connects directly to the JSON API, without an embedded browser.
 
 </details>
 

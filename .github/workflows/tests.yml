@@ -23,3 +23,15 @@ jobs:
         with:
           node-version: '22'
       - run: npm test
+  native-windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: dotnet build windows/HENTAIStudio.Tests/HENTAIStudio.Tests.csproj --configuration Release
+      - run: python tests/browser/native_check.py windows/HENTAIStudio.Tests/bin/Release/net8.0-windows/HENTAIStudio.Tests.exe

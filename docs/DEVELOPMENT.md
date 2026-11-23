@@ -25,9 +25,9 @@ The browser test launches an empty server and registers the standard-library dem
 
 Build a wheel and install it in a fresh environment. Run the entire Python and browser suites against that installed package without scratchtag, Lucy, Torch, Transformers, Diffusers or any training library. Check the wheel contains no historical workloads/core trainer tree, bundled project profiles, or compiled probe. ML requirements must be restricted to the optional llm extra; its standalone runner modules must be present. Clean stale build output after removing modules; package discovery excludes implicit namespaces and only declared browser assets are shipped.
 
-`dotnet build windows/HENTAIStudio/HENTAIStudio.csproj --configuration Release` validates the optional shell. Native runtime/UI launch is separate from compilation. build.ps1 publishes only unless -Install is explicitly supplied; installation creates a private backend venv and shortcuts without deleting workspace data.
+`dotnet build windows/HENTAIStudio/HENTAIStudio.csproj --configuration Release` validates the native Windows client. Native runtime/UI launch is separate from compilation. build.ps1 publishes only unless -Install is explicitly supplied; installation creates a private backend venv and shortcuts without deleting workspace data.
 
-GitHub Actions runs the standalone Python/JavaScript suites on Windows and Linux with Python 3.11 and 3.12. Browser and native runtime checks remain separate acceptance steps.
+GitHub Actions runs the standalone Python/JavaScript suites on Windows and Linux with Python 3.11 and 3.12. The native client checks also run on Windows CI; browser acceptance remains a separate step.
 
 The API contract suite verifies registration defaults, atomic partial edits, public job redaction, links/actions, cursor scope/stability, idempotent stop, output URLs and stable OpenAPI operations. The Python client suite talks to a real local Uvicorn server and external trainer, covering the full register/start/wait/read/resume/download/error workflow. These tests run with the ordinary dev dependencies; the client itself needs only the standard library.
 
@@ -44,3 +44,12 @@ With the optional LLM dependencies installed, run `STUDIO_TEST_LLM=1 python -m p
 ## Dense job-history layout
 
 Run `npm run test:history` after installing Playwright. The check serves the real dashboard with 11 demo jobs and long project names, then verifies card containment, non-overlap, filtering, selection, and scrolling at desktop, short-window, split-screen, and phone sizes. It uses no training workspace or live service. `STUDIO_SCREENSHOT` optionally captures the repaired history panel.
+
+## Native Windows acceptance
+
+```powershell
+dotnet build windows/HENTAIStudio.Tests/HENTAIStudio.Tests.csproj --configuration Release
+python tests/browser/native_check.py windows/HENTAIStudio.Tests/bin/Release/net8.0-windows/HENTAIStudio.Tests.exe
+```
+
+The runner starts an isolated API fixture and closes only that fixture afterward. Checks cover native control types, actual form resizing and non-overlapping history rows, pagination, metric step resets, artifact downloads, connection errors, cancellation, project edits, start/stop/resume requests, and native checkpoint load/chat/unload controls. The fixture never starts training or loads model weights. The request log verifies that the client requests only JSON API routes, with no browser assets. No extra .NET test packages are required.

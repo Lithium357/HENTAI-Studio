@@ -23,7 +23,7 @@ if (-not $Install) {
 # Installation is explicit and does not delete existing app or workspace data.
 $installRoot = Join-Path $env:LOCALAPPDATA 'Programs\HENTAI Studio'
 New-Item -ItemType Directory -Force -Path $installRoot | Out-Null
-Copy-Item -Path (Join-Path $publishRoot '*') -Destination $installRoot -Recurse -Force
+Copy-Item -LiteralPath (Join-Path $publishRoot 'HENTAI Studio.exe') -Destination $installRoot -Force
 $backendRoot = Join-Path $installRoot 'backend'
 & $Python -m venv $backendRoot
 if ($LASTEXITCODE -ne 0) { throw 'Failed to create the Studio backend environment.' }
