@@ -16,12 +16,16 @@ internal sealed class NativeChat : UserControl
     private readonly NumericUpDown temperature = new() { Minimum = 0, Maximum = 2, DecimalPlaces = 2, Increment = .05m, Value = .7m, Width = 70 };
     private readonly NumericUpDown tokens = new() { Minimum = 1, Maximum = 2048, Value = 128, Width = 80 };
     private readonly Button load = new() { Text = "Load checkpoint", AutoSize = true }, unload = new() { Text = "Unload model", AutoSize = true }, send = new() { Text = "Send prompt", AutoSize = true }, clear = new() { Text = "Clear conversation", AutoSize = true };
+    private readonly Button latest = new() { Text = "Load latest checkpoint", AutoSize = true, MinimumSize = new Size(160, 32) };
+    private readonly CheckBox autoLoad = new() { Text = "Auto-load latest when opening this tester", AutoSize = true };
+    private readonly CheckBox advanced = new() { Text = "Advanced options ▸", Appearance = Appearance.Button, AutoSize = true };
     private readonly Label status = new() { Text = "No model loaded. CPU is the default.", Dock = DockStyle.Fill, AutoEllipsis = true };
     private readonly Dictionary<string, Conversation> conversations = [];
     private string? project, job;
     private bool busy, loaded, connected, checking;
     private string lastError = "";
     private int revision;
+    private string loadedCheckpoint = "";
     private Conversation Current => conversations.TryGetValue(project ?? "", out var value) ? value : conversations[project ?? ""] = new();
 
     public NativeChat(StudioApi api, CancellationToken lifetime, Func<Task> refresh)
@@ -29,17 +33,26 @@ internal sealed class NativeChat : UserControl
         this.api = api; this.lifetime = lifetime; this.refresh = refresh; Dock = DockStyle.Fill;
         source.Items.AddRange(["Selected job output", "Local directory"]); source.SelectedIndex = 0;
         device.Items.AddRange(["cpu", "cuda"]); device.SelectedIndex = 0;
-        var grid = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 1, RowCount = 7, Padding = new Padding(8) };
-        grid.RowStyles.Add(new(SizeType.AutoSize)); grid.RowStyles.Add(new(SizeType.Absolute, 30)); grid.RowStyles.Add(new(SizeType.Absolute, 34)); grid.RowStyles.Add(new(SizeType.AutoSize)); grid.RowStyles.Add(new(SizeType.Percent, 100)); grid.RowStyles.Add(new(SizeType.Absolute, 65)); grid.RowStyles.Add(new(SizeType.AutoSize));
-        grid.Controls.Add(Flow(source, checkpoint, device, load, unload), 0, 0); grid.Controls.Add(status, 0, 1); grid.Controls.Add(system, 0, 2);
-        grid.Controls.Add(Flow(new Label { Text = "Temperature", AutoSize = true }, temperature, new Label { Text = "Max new tokens", AutoSize = true }, tokens), 0, 3);
-        grid.Controls.Add(transcript, 0, 4); grid.Controls.Add(prompt, 0, 5); grid.Controls.Add(Flow(send, clear), 0, 6); Controls.Add(grid);
+        var grid = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 1, RowCount = 8, Padding = new Padding(10) };
+        grid.RowStyles.Add(new(SizeType.AutoSize)); grid.RowStyles.Add(new(SizeType.AutoSize)); grid.RowStyles.Add(new(SizeType.Absolute, 48)); grid.RowStyles.Add(new(SizeType.AutoSize)); grid.RowStyles.Add(new(SizeType.AutoSize)); grid.RowStyles.Add(new(SizeType.Percent, 100)); grid.RowStyles.Add(new(SizeType.Absolute, 75)); grid.RowStyles.Add(new(SizeType.AutoSize));
+        grid.Controls.Add(new Label { Text = "1. Load the latest saved weights.  2. Type a prompt below.  3. Send it to your model.\nCPU testing can run alongside training. Checkpoints and inference live on the backend machine.", AutoSize = true, Dock = DockStyle.Fill, Padding = new Padding(0, 0, 0, 8) }, 0, 0);
+        grid.Controls.Add(Flow(latest, new Label { Text = "Run on", AutoSize = true, Padding = new Padding(4, 5, 0, 0) }, device, unload, autoLoad), 0, 1);
+        grid.Controls.Add(status, 0, 2); grid.Controls.Add(Flow(advanced), 0, 3);
+        var options = new TableLayoutPanel { AutoSize = true, Dock = DockStyle.Fill, ColumnCount = 1, Visible = false };
+        options.Controls.Add(Flow(new Label { Text = "Manual source", AutoSize = true }, source, checkpoint, load));
+        options.Controls.Add(Flow(new Label { Text = "Temperature", AutoSize = true }, temperature, new Label { Text = "Response token limit", AutoSize = true }, tokens));
+        options.Controls.Add(system); grid.Controls.Add(options, 0, 4);
+        advanced.CheckedChanged += (_, _) => { options.Visible = advanced.Checked; advanced.Text = advanced.Checked ? "Advanced options ▾" : "Advanced options ▸"; };
+        grid.Controls.Add(transcript, 0, 5); grid.Controls.Add(prompt, 0, 6); grid.Controls.Add(Flow(send, clear), 0, 7); Controls.Add(grid);
+        latest.Click += async (_, _) => await LoadLatest();
+        autoLoad.CheckedChanged += async (_, _) => { if (autoLoad.Checked) await AutoLoadLatest(); };
+        VisibleChanged += async (_, _) => await AutoLoadLatest();
         source.SelectedIndexChanged += (_, _) => checkpoint.Text = source.SelectedIndex == 0 ? "model" : "";
         load.Click += async (_, _) => await Operation(async (id, conversation) =>
         {
             if (string.IsNullOrWhiteSpace(checkpoint.Text) || source.SelectedIndex == 0 && job is null) throw new InvalidOperationException("Choose a job checkpoint or a saved local model directory.");
             var result = await api.Request(Path(id) + "/load", lifetime, HttpMethod.Post, new JsonObject { ["checkpoint"] = checkpoint.Text.Trim(), ["job_id"] = source.SelectedIndex == 0 ? job : null, ["device"] = device.SelectedItem?.ToString() });
-            if (id == project) { loaded = result.Flag("loaded"); conversation.Messages.Clear(); RenderConversation(); }
+            if (id == project) { loaded = result.Flag("loaded"); loadedCheckpoint = result.Text("checkpoint"); conversation.Messages.Clear(); RenderConversation(); }
             await refresh();
         }, "Loading local checkpoint…");
         unload.Click += async (_, _) => await Operation(async (id, _) => { await api.Request(Path(id) + "/unload", lifetime, HttpMethod.Post); if (id == project) loaded = false; await refresh(); }, "Unloading model…");
@@ -65,15 +78,31 @@ internal sealed class NativeChat : UserControl
     }
     private static FlowLayoutPanel Flow(params Control[] controls) { var panel = new FlowLayoutPanel { Dock = DockStyle.Fill, AutoSize = true, WrapContents = true }; panel.Controls.AddRange(controls); return panel; }
     private static string Path(string id) => StudioApi.ProjectPath(id) + "/chat";
+    private Task AutoLoadLatest() => autoLoad.Checked && Visible && project is not null && connected && !busy ? LoadLatest() : Task.CompletedTask;
+    private async Task LoadLatest()
+    {
+        await Operation(async (id, conversation) =>
+        {
+            var result = await api.Request(Path(id) + "/load-latest", lifetime, HttpMethod.Post, new JsonObject { ["device"] = device.SelectedItem?.ToString(), ["replace"] = true });
+            if (id == project)
+            {
+                if (loadedCheckpoint != result.Text("checkpoint")) { conversation.Messages.Clear(); RenderConversation(); }
+                loaded = result.Flag("loaded"); loadedCheckpoint = result.Text("checkpoint");
+            }
+            await refresh();
+        }, "Finding and loading the latest complete checkpoint…");
+    }
     public void Bind(string? id, string? selectedJob, bool isConnected)
     {
         connected = isConnected; job = selectedJob;
+        if (id is null && !busy) status.Text = "Choose a scratch LLM project in the project list to test a model.";
         if (id != project)
         {
             revision++;
             if (project is not null) { Current.Draft = prompt.Text; Current.System = system.Text; }
-            project = id; loaded = false; lastError = ""; prompt.Text = Current.Draft; system.Text = Current.System; RenderConversation();
-            status.Text = "No model loaded. Load saved local weights to test responses.";
+            project = id; loaded = false; loadedCheckpoint = ""; lastError = ""; prompt.Text = Current.Draft; system.Text = Current.System; RenderConversation();
+            status.Text = id is null ? "Choose a scratch LLM project in the project list to test a model." : "Ready to test. Click Load latest checkpoint; no directory typing is needed.";
+            _ = AutoLoadLatest();
         }
         ApplyControls();
         _ = RefreshStatus();
@@ -89,6 +118,7 @@ internal sealed class NativeChat : UserControl
             if (!IsDisposed && project == id && version == revision && !busy)
             {
                 loaded = state.Flag("loaded");
+                loadedCheckpoint = state.Text("checkpoint");
                 if (lastError.Length == 0) status.Text = loaded ? "Loaded · " + state.Text("device") + " · " + state.Text("checkpoint") : "No model loaded. CPU is the default.";
                 ApplyControls();
             }
@@ -100,7 +130,7 @@ internal sealed class NativeChat : UserControl
     {
         if (busy || project is null || !connected) return;
         var id = project; var conversation = Current; revision++; busy = true; lastError = ""; status.Text = label; ApplyControls();
-        try { await action(id, conversation); if (!IsDisposed && project == id) status.Text = loaded ? "Local model ready" : "No model loaded"; }
+        try { await action(id, conversation); if (!IsDisposed && project == id) status.Text = loaded ? "Ready · " + loadedCheckpoint + " · type a prompt below" : "Model unloaded. Load the latest checkpoint to test again."; }
         catch (Exception error) { if (!IsDisposed && project == id) { lastError = error.Message; status.Text = lastError; } }
         finally { busy = false; if (!IsDisposed) ApplyControls(); }
     }
@@ -108,6 +138,7 @@ internal sealed class NativeChat : UserControl
     {
         var enabled = project is not null && connected && !busy;
         load.Enabled = enabled && !loaded; unload.Enabled = send.Enabled = enabled && loaded; clear.Enabled = !busy;
+        latest.Enabled = enabled; autoLoad.Enabled = !busy && project is not null;
         source.Enabled = checkpoint.Enabled = device.Enabled = system.Enabled = prompt.Enabled = temperature.Enabled = tokens.Enabled = !busy;
     }
     private void RenderConversation()

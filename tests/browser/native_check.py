@@ -28,7 +28,9 @@ def main():
             except (subprocess.CalledProcessError, subprocess.TimeoutExpired):
                 print(
                     "Recent fixture requests:\n"
-                    + "\n".join(log.read_text(encoding="utf-8").splitlines()[-30:]),
+                    + "\n".join(log.read_text(encoding="utf-8").splitlines()[-30:])
+                    if log.exists()
+                    else "No API requests were made before the native client failed.",
                     flush=True,
                 )
                 raise

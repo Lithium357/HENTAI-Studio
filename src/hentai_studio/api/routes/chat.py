@@ -5,6 +5,7 @@ from typing import Literal
 from fastapi import APIRouter, Request
 from pydantic import Field, model_validator
 
+from ...llm.checkpoints import CheckpointSelection, latest_checkpoint
 from ...models import Identifier, Model
 
 router = APIRouter(prefix="/projects/{project_id}/chat", tags=["llm"])
@@ -22,6 +23,17 @@ class ChatStatus(Model):
     busy: bool
     checkpoint: str | None
     device: str | None
+
+
+class ChatLoadLatest(Model):
+    job_id: Identifier | None = None
+    tokenizer: str = Field(default="", max_length=4096)
+    device: Literal["cpu", "cuda"] = "cpu"
+    replace: bool = True
+
+
+class ChatLatestStatus(ChatStatus):
+    selection: CheckpointSelection
 
 
 class Message(Model):
@@ -56,6 +68,24 @@ def status(project_id: str, request: Request):
 @router.post("/load", response_model=ChatStatus, operation_id="load_chat_checkpoint")
 def load(project_id: str, body: ChatLoad, request: Request):
     return request.app.state.chat.load(project_id, body)
+
+
+@router.get(
+    "/checkpoints/latest",
+    response_model=CheckpointSelection,
+    operation_id="get_latest_chat_checkpoint",
+)
+def latest(project_id: str, request: Request, job_id: Identifier | None = None):
+    return latest_checkpoint(request.app.state.workspace, project_id, job_id)
+
+
+@router.post(
+    "/load-latest",
+    response_model=ChatLatestStatus,
+    operation_id="load_latest_chat_checkpoint",
+)
+def load_latest(project_id: str, request: Request, body: ChatLoadLatest | None = None):
+    return request.app.state.chat.load_latest(project_id, body or ChatLoadLatest())
 
 
 @router.post(

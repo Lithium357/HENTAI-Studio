@@ -98,10 +98,12 @@ def test_scratch_training_resume_and_local_chat(tmp_path):
         assert "Scratch model initialized" in logs
         assert client.get(f"/api/jobs/{job['id']}/metrics").json()["items"]
         loaded = client.post(
-            "/api/projects/tiny/chat/load",
-            json={"checkpoint": "model", "job_id": job["id"]},
+            "/api/projects/tiny/chat/load-latest",
+            json={},
         )
         assert loaded.status_code == 200, loaded.text
+        assert loaded.json()["selection"]["job_id"] == job["id"]
+        assert loaded.json()["selection"]["checkpoint"] == "model"
         reply = client.post(
             "/api/projects/tiny/chat/completions",
             json={

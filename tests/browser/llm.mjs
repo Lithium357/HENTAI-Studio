@@ -66,6 +66,9 @@ try {
   await page.locator('#chatTab').click();
   assert.equal(await page.locator('#chatPanel').isVisible(), true);
   assert.equal(await page.locator('#sendChat').isDisabled(), true);
+  await page.locator('#loadLatestChat').click();
+  await page.waitForFunction(() => document.getElementById('chatError').textContent.includes('No complete saved checkpoint'));
+  await page.locator('#manualChat summary').click();
   await page.locator('#loadChat').click();
   assert.match(await page.locator('#chatError').textContent(), /Select a job/);
   await page.locator('#chatSource').selectOption('path');

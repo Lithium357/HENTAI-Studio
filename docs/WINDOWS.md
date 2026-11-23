@@ -18,6 +18,8 @@ The resulting executable is `dist/HENTAIStudio/HENTAI Studio.exe`. Publishing pr
 
 ## Connect and use multiple windows
 
+The workspace has three main views: **Runs** for launching/resuming commands and inspecting **Metrics**, **Console**, and **Output files**; **Test model** for loading the latest scratch-model checkpoint and chatting; and **Hardware** for current backend resource usage. Project settings stay above these views. Select a project in the sidebar first; **All jobs** is the cross-project history view.
+
 Studio opens a native port picker. Enter a local backend port or a forwarded SSH port. Connecting starts no backend unless you check **Start a local Studio backend if none is running**.
 
 ```powershell

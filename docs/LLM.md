@@ -4,6 +4,18 @@ Studio can initialize a causal language model from a **local model configuration
 
 The built-in runner supports Transformers-compatible causal language models and tokenizers. Custom architectures that need custom Python code should continue using an external training command; the built-in loader does not execute `trust_remote_code`. Chat tests full model checkpoints, not LoRA adapters or GGUF files.
 
+## Latest checkpoint testing
+
+In the native app, select your scratch LLM project and open **Test model**. Click **Load latest checkpoint**, type a prompt, then **Send prompt**. The loaded path remains visible. Enable **Auto-load latest when opening this tester** to perform the loading step automatically when you enter the view. The option starts off; it does not poll and replace weights while you are chatting. Manual job/path selection, temperature, response length, and system prompt are under **Advanced options**. The browser tester provides the same latest-load button and opt-in automatic behavior.
+
+Discovery considers this project's runs from newest to oldest by creation time (ties use run ID). It picks the first run containing complete weights. A successful run's final `model/` directory takes precedence; otherwise the numerically highest valid `checkpoint-N/` wins. Optimizer step counts are compared within a run, so an older run's larger step number does not override a new experiment. An optional API `job_id` restricts this search to one run.
+
+Candidates need a valid `config.json` and full `model.safetensors` or `pytorch_model.bin` weights, or a complete corresponding shard index and every referenced shard. Safetensors headers and data extents are checked without loading tensors; truncated ZIP saves are rejected. Weights and metadata must remain inside the run's output directory. In active runs, `checkpoint-N/trainer_state.json` must also report the matching global step, so a save still in progress is skipped. Custom trainers without this completion marker can use manual loading after their save completes. The inference worker performs the final model compatibility validation.
+
+CPU is the default and can be used while training continues. GPU testing retains the existing training-conflict checks. Loading the same checkpoint again reuses its worker and keeps the conversation; switching to different weights clears the UI conversation. Latest-loading can replace the selected project's idle test model, but never another project's model or a trainer. If no complete save exists yet, the tester explains that it is waiting for a checkpoint.
+
+The latest endpoints require Studio backend **0.9 or newer**. Update a remote backend's package and restart only its Studio API server, preserving the existing workspace and independent training supervisors.
+
 ## Prepare the training environment
 
 Use the environment where your model will run, independently of the Studio server:

@@ -1,10 +1,28 @@
-# Studio API 0.8
+# Studio API 0.9
 
 Register a project once, start its commands as jobs, and follow the returned job URL. The API works without any model framework or training-project import. Start `hentai-studio serve`; the default server is `http://127.0.0.1:7860`.
 
 [Interactive docs](http://127.0.0.1:7860/api/docs) describe every request and response. OpenAPI is `/api/openapi.json`, with stable operation IDs for generated clients. JSON fields use snake_case. Internal process IDs, full project snapshots and configured environment values are excluded from job responses.
 
 ## Python: the complete workflow
+
+For the model tester, `GET /api/projects/{project_id}/chat/checkpoints/latest` discovers a complete checkpoint without loading it. `POST /api/projects/{project_id}/chat/load-latest` discovers and loads it in one operation:
+
+```http
+POST /api/projects/my-model/chat/load-latest
+Content-Type: application/json
+
+{"device":"cpu","replace":true}
+```
+
+The body is optional. `job_id` limits discovery to one run; otherwise the project is searched. `tokenizer` optionally overrides the project's tokenizer path. The response contains `loaded`, `busy`, `checkpoint`, `device`, and `selection` (`project_id`, `job_id`, relative `checkpoint`, `step`, and `job_created_at`). The same already-loaded checkpoint/device is reused. A newer checkpoint replaces only this project's idle inference worker when `replace` is true; false returns `409 model_loaded`. Busy generation returns `409 inference_busy`; GPU loading during training returns `409 training_active`. No available complete save returns `404 checkpoint_not_found`. No training job is stopped.
+
+```python
+selection = studio.latest_checkpoint("my-model")
+ready = studio.load_latest_checkpoint("my-model", device="cpu")
+```
+
+See [checkpoint selection and tester behavior](LLM.md#latest-checkpoint-testing) for ordering, supported weight files, and the UI's opt-in automatic loading.
 
 `GET /api/hardware` (or `studio.hardware()`) returns live backend-host CPU, RAM, and per-GPU readings independently of any job. It includes provider issues, sample time, age, initialization and stale flags. Unsupported sensor values are `null`. See [Hardware monitoring](HARDWARE.md) for the vendor/platform matrix and deployment requirements.
 

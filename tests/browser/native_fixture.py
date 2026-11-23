@@ -218,6 +218,22 @@ class API(BaseHTTPRequestHandler):
         body = json.loads(
             self.rfile.read(int(self.headers.get("Content-Length", 0))) or "{}"
         )
+        if path.endswith("/chat/load-latest"):
+            loaded = True
+            return self.response(
+                200,
+                {
+                    "loaded": True,
+                    "device": "cpu",
+                    "checkpoint": "/demo/latest/checkpoint-200",
+                    "busy": False,
+                    "selection": {
+                        "job_id": "job-0",
+                        "checkpoint": "checkpoint-200",
+                        "step": 200,
+                    },
+                },
+            )
         if path.endswith("/chat/load"):
             loaded = True
             return self.response(

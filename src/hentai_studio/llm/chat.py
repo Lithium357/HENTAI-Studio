@@ -6,11 +6,13 @@ import queue
 import subprocess
 import threading
 from pathlib import Path
+from types import SimpleNamespace
 
 import psutil
 
 from ..errors import StudioError
 from ..jobs.processes import terminate_tree, verified_process
+from .checkpoints import latest_checkpoint
 
 
 class Session:
@@ -234,6 +236,61 @@ class ChatService:
                 "The inference worker disconnected during model loading.",
             ) from error
         return session.status()
+
+    def load_latest(self, project_id, request):
+        selection = latest_checkpoint(self.workspace, project_id, request.job_id)
+        target = (
+            self.workspace.job_directory(selection.job_id)
+            / "output"
+            / selection.checkpoint
+        ).resolve()
+        # Match the workspace -> chat lock order used by ordinary loads/admission.
+        with self.workspace._lock, self.lock:
+            existing = self.sessions.get(selection.project_id)
+            if request.device == "cuda" and any(
+                self.workspace._busy(job) for job in self.workspace.list_jobs()
+            ):
+                raise StudioError(
+                    409,
+                    "training_active",
+                    "GPU inference is disabled while training is active. Use CPU testing.",
+                )
+            if (
+                existing
+                and existing.status()["loaded"]
+                and existing.checkpoint == str(target)
+                and existing.device == request.device
+                and not request.tokenizer
+            ):
+                return {**existing.status(), "selection": selection}
+            if existing and existing.process.poll() is None:
+                if not request.replace:
+                    raise StudioError(
+                        409,
+                        "model_loaded",
+                        "Unload the current test model or allow replacement.",
+                    )
+                if not existing.lock.acquire(blocking=False):
+                    raise StudioError(
+                        409,
+                        "inference_busy",
+                        "Wait for the current response before loading a newer checkpoint.",
+                    )
+                try:
+                    existing.close()
+                    self.sessions.pop(selection.project_id, None)
+                finally:
+                    existing.lock.release()
+        result = self.load(
+            project_id,
+            SimpleNamespace(
+                checkpoint=selection.checkpoint,
+                job_id=selection.job_id,
+                tokenizer=request.tokenizer,
+                device=request.device,
+            ),
+        )
+        return {**result, "selection": selection}
 
     def unload(self, project_id):
         project = self._project(project_id)

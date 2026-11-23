@@ -10,6 +10,7 @@ export function bindChat(getState) {
     controller;
   let loaded = false,
     loadedDevice = null;
+  let loadedCheckpoint = "";
   const selected = () => getState().projectId;
   const conversation = () => {
     const id = selected();
@@ -38,6 +39,8 @@ export function bindChat(getState) {
   function controls() {
     const enabled = !!getState().project?.llm && getState().connected && !busy;
     $("loadChat").disabled = !enabled || loaded;
+    $("loadLatestChat").disabled = !enabled;
+    $("autoLatestChat").disabled = !enabled;
     $("unloadChat").disabled = !enabled || !loaded;
     $("sendChat").disabled = !enabled || !loaded;
     $("clearChat").disabled = busy;
@@ -54,6 +57,8 @@ export function bindChat(getState) {
   function showStatus(result) {
     loaded = result.loaded;
     loadedDevice = result.device;
+    loadedCheckpoint = result.checkpoint || "";
+    $("loadedCheckpoint").textContent = loadedCheckpoint ? "Testing: " + loadedCheckpoint : "No checkpoint loaded yet.";
     $("chatStatus").textContent = loaded ? `Loaded · ${result.device.toUpperCase()}` : "No model loaded";
     $("chatStatus").dataset.state = loaded ? "running" : "stopped";
     $("chatStatus").title = result.checkpoint || "";
@@ -131,7 +136,10 @@ export function bindChat(getState) {
     $("chatTab").setAttribute("aria-selected", String(tab === "chat"));
     $("jobsTab").tabIndex = tab === "jobs" ? 0 : -1;
     $("chatTab").tabIndex = tab === "chat" ? 0 : -1;
-    if (tab === "chat") void status();
+    if (tab === "chat") {
+      if ($("autoLatestChat").checked) void loadLatest();
+      else void status();
+    }
   }
   for (const id of ["jobsTab", "chatTab"]) $(id).onkeydown = event => {
     if (["ArrowLeft", "ArrowRight", "Home", "End"].includes(event.key)) {
@@ -143,6 +151,16 @@ export function bindChat(getState) {
   };
   $("jobsTab").onclick = () => setTab("jobs");
   $("chatTab").onclick = () => setTab("chat");
+  async function loadLatest() {
+    const previous = loadedCheckpoint;
+    const result = await operation("/load-latest", { device: $("chatDevice").value, replace: true }, "Finding and loading latest checkpoint…");
+    if (result) {
+      if (previous !== result.checkpoint) { conversation().messages = []; messages(); }
+      showStatus(result);
+    } else if (getState().project?.llm) void status();
+  }
+  $("loadLatestChat").onclick = loadLatest;
+  $("autoLatestChat").onchange = () => { if ($("autoLatestChat").checked && tab === "chat") void loadLatest(); };
   $("chatSource").onchange = () => {
     $("chatCheckpoint").value = $("chatSource").value === "job" ? "model" : "";
     renderSource();
@@ -228,6 +246,8 @@ export function bindChat(getState) {
         projectId = state.projectId;
         busy = false;
         loaded = false;
+        loadedCheckpoint = "";
+        $("loadedCheckpoint").textContent = "No checkpoint loaded yet.";
         tab = "jobs";
         const item = conversation();
         $("chatSystem").value = item.system;

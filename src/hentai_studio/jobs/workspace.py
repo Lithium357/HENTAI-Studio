@@ -267,8 +267,17 @@ class Workspace:
             identities = [
                 ProcessIdentity(pid=job.trainer_pid, created=job.trainer_created)
             ]
+        # Long runs can retain thousands of short-lived child identities. Avoid
+        # probing every dead PID on every dashboard refresh. Existing PIDs still
+        # go through the creation-time verification below, including reused IDs.
+        try:
+            present = set(psutil.pids()) if identities else set()
+        except psutil.Error:
+            present = None
         processes = []
         for identity in identities:
+            if present is not None and identity.pid not in present:
+                continue
             try:
                 process = verified_process(identity.pid, identity.created)
                 if process:

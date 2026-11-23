@@ -3,6 +3,7 @@ import os
 import subprocess
 import sys
 import time
+from unittest.mock import Mock
 
 import psutil
 import pytest
@@ -11,6 +12,23 @@ from hentai_studio.errors import StudioError
 from hentai_studio.jobs.files import ACTIVE, atomic_json
 from hentai_studio.jobs.workspace import Workspace
 from hentai_studio.models import JobRequest, Project
+
+
+def test_dead_process_history_skips_syscalls_but_live_ids_are_verified(
+    workspace, tmp_path, monkeypatch
+):
+    directory = tmp_path / "history"
+    directory.mkdir()
+    atomic_json(
+        directory / "processes.json",
+        [{"pid": 101, "created": 1.0}, {"pid": 202, "created": 2.0}],
+    )
+    monkeypatch.setattr("hentai_studio.jobs.workspace.psutil.pids", lambda: [202])
+    marker = object()
+    verify = Mock(return_value=marker)
+    monkeypatch.setattr("hentai_studio.jobs.workspace.verified_process", verify)
+    assert workspace._owned_processes(directory) == [marker]
+    verify.assert_called_once_with(202, 2.0)
 
 
 @pytest.fixture
@@ -233,7 +251,7 @@ def test_reused_pid_never_counts_as_live_supervisor(workspace, tmp_path):
 
 
 def test_atomic_state_retries_transient_windows_reader_lock(tmp_path, monkeypatch):
-    import hentai_studio.jobs.files as files
+    from hentai_studio.jobs import files
 
     target = tmp_path / "state.json"
     original = os.replace

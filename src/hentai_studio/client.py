@@ -113,6 +113,21 @@ class StudioClient:
     def health(self):
         return self.request("GET", "/api/health")
 
+    def latest_checkpoint(self, project, *, job_id=None):
+        query = "?" + urlencode({"job_id": job_id}) if job_id else ""
+        return self.request(
+            "GET", f"/api/projects/{_id(project)}/chat/checkpoints/latest" + query
+        )
+
+    def load_latest_checkpoint(
+        self, project, *, job_id=None, device="cpu", replace=True
+    ):
+        return self.request(
+            "POST",
+            f"/api/projects/{_id(project)}/chat/load-latest",
+            {"job_id": job_id, "device": device, "replace": replace},
+        )
+
     def _pages(self, path, *, page_size=50, **filters):
         if not 1 <= page_size <= 200:
             raise ValueError("page_size must be between 1 and 200")

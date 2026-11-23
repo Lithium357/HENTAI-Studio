@@ -10,17 +10,18 @@ internal sealed class StudioForm : Form
     private readonly bool connectOnly;
     private readonly CancellationTokenSource lifetime = new();
     private readonly System.Windows.Forms.Timer timer = new() { Interval = 3000 };
-    private readonly ListBox projectList = new() { Dock = DockStyle.Fill, IntegralHeight = false, DisplayMember = "Name" };
+    private readonly ListBox projectList = new() { Dock = DockStyle.Fill, IntegralHeight = false, DisplayMember = "Name", HorizontalScrollbar = true };
     private readonly ListView history = MakeList("Command", "State", "Project", "Created");
     private readonly TextBox jobFilter = new() { Dock = DockStyle.Fill, PlaceholderText = "Filter jobs by project, command, state, or ID" };
     private readonly ComboBox commands = new() { DropDownStyle = ComboBoxStyle.DropDownList, Width = 160, AccessibleName = "Command" };
-    private readonly CheckBox resume = new() { AutoSize = true, Text = "Resume selected job" };
-    private readonly Button start = Button("Start run"), stop = Button("Stop job"), edit = Button("Edit project"), remove = Button("Unregister");
+    private readonly CheckBox resume = new() { AutoSize = true, Text = "Resume selected run" };
+    private readonly Button start = Button("Start run"), stop = Button("Stop active run"), edit = Button("Project settings…"), remove = Button("Unregister…");
     private readonly Label projectHeading = new() { Dock = DockStyle.Fill, AutoEllipsis = true, TextAlign = ContentAlignment.MiddleLeft, Font = new Font("Segoe UI", 12, FontStyle.Bold) };
     private readonly Label jobHeading = new() { Dock = DockStyle.Fill, AutoEllipsis = true, TextAlign = ContentAlignment.MiddleLeft };
     private readonly Label notice = new() { Dock = DockStyle.Top, AutoSize = true, ForeColor = Color.Firebrick, Padding = new Padding(8), MaximumSize = new Size(1500, 0) };
     private readonly ToolStripStatusLabel connection = new() { Text = "Connecting…", Spring = true, TextAlign = ContentAlignment.MiddleLeft };
-    private readonly TabControl tabs = new() { Dock = DockStyle.Fill };
+    private readonly TabControl tabs = new() { Dock = DockStyle.Fill, Name = "RunDetails" };
+    private readonly TabControl workspaceTabs = new() { Dock = DockStyle.Fill, Name = "WorkspaceViews", AccessibleName = "Workspace views" };
     private readonly ComboBox metric = new() { DropDownStyle = ComboBoxStyle.DropDownList, Width = 220, AccessibleName = "Metric" };
     private readonly Label metricValue = new() { AutoSize = true, Font = new Font("Segoe UI", 14, FontStyle.Bold), Padding = new Padding(8) };
     private readonly MetricChart chart = new();
@@ -56,7 +57,7 @@ internal sealed class StudioForm : Form
         AutoScaleDimensions = new SizeF(96, 96); AutoScaleMode = AutoScaleMode.Dpi;
         Font = new Font("Segoe UI", 9.5f); MinimumSize = new Size(440, 380); Size = new Size(1120, 800); StartPosition = FormStartPosition.CenterScreen;
         Icon = Icon.ExtractAssociatedIcon(Application.ExecutablePath);
-        chat = new NativeChat(api, lifetime.Token, () => RefreshAsync()); chatTab = new TabPage("Chat tester"); chatTab.Controls.Add(chat);
+        chat = new NativeChat(api, lifetime.Token, () => RefreshAsync()); chatTab = new TabPage("Test model"); chatTab.Controls.Add(chat);
         hardware = new NativeHardware(api, lifetime.Token);
         var menu = new MenuStrip();
         menu.Items.Add("New window…", null, (_, _) => SafeNewWindow());
@@ -71,7 +72,15 @@ internal sealed class StudioForm : Form
         var manage = Flow(edit, remove); heading.Controls.Add(projectHeading); heading.Controls.Add(manage);
         content.Controls.Add(heading, 0, 0);
         var controls = Flow(new Label { AutoSize = true, Text = "Command", Padding = new Padding(0, 7, 4, 0) }, commands, resume, start, stop);
-        content.Controls.Add(controls, 0, 1); content.Controls.Add(jobsSplit, 0, 2);
+        var runs = new TabPage("Runs");
+        var runLayout = new TableLayoutPanel { Dock = DockStyle.Fill, RowCount = 2, ColumnCount = 1, Padding = new Padding(6) };
+        runLayout.RowStyles.Add(new(SizeType.AutoSize)); runLayout.RowStyles.Add(new(SizeType.Percent, 100));
+        var launch = new GroupBox { Text = "Start or resume a run", Dock = DockStyle.Fill, AutoSize = true, Padding = new Padding(6, 18, 6, 6) };
+        launch.Controls.Add(controls); runLayout.Controls.Add(launch, 0, 0); runLayout.Controls.Add(jobsSplit, 0, 1); runs.Controls.Add(runLayout);
+        workspaceTabs.TabPages.Add(runs); workspaceTabs.TabPages.Add(chatTab);
+        var hardwarePage = new TabPage("Hardware"); hardwarePage.Controls.Add(hardware); workspaceTabs.TabPages.Add(hardwarePage);
+        content.Controls.Add(new Label { Text = "Choose a project, then use Runs to train, Test model to chat, or Hardware to inspect the backend.", AutoSize = true, Dock = DockStyle.Fill, Padding = new Padding(0, 4, 0, 8), ForeColor = SystemColors.GrayText }, 0, 1);
+        content.Controls.Add(workspaceTabs, 0, 2);
         var projectPanel = new TableLayoutPanel { Dock = DockStyle.Fill, RowCount = 3, ColumnCount = 1, Padding = new Padding(8) };
         projectPanel.RowStyles.Add(new(SizeType.Absolute, 30)); projectPanel.RowStyles.Add(new(SizeType.Percent, 100)); projectPanel.RowStyles.Add(new(SizeType.Absolute, 38));
         projectPanel.Controls.Add(new Label { Text = "Projects", Font = new Font(Font, FontStyle.Bold), Dock = DockStyle.Fill });
@@ -80,7 +89,7 @@ internal sealed class StudioForm : Form
         projectsSplit.Panel1.Controls.Add(projectPanel); projectsSplit.Panel2.Controls.Add(content);
         var historyPanel = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 1, RowCount = 3 };
         historyPanel.RowStyles.Add(new(SizeType.Absolute, 26)); historyPanel.RowStyles.Add(new(SizeType.Absolute, 36)); historyPanel.RowStyles.Add(new(SizeType.Percent, 100));
-        historyPanel.Controls.Add(new Label { Text = "Job history", Dock = DockStyle.Fill, Font = new Font(Font, FontStyle.Bold) }); historyPanel.Controls.Add(jobFilter, 0, 1); historyPanel.Controls.Add(history, 0, 2);
+        historyPanel.Controls.Add(new Label { Text = "Recent runs · select a row to inspect", Dock = DockStyle.Fill, Font = new Font(Font, FontStyle.Bold) }); historyPanel.Controls.Add(jobFilter, 0, 1); historyPanel.Controls.Add(history, 0, 2);
         history.SmallImageList = rowHeight;
         jobsSplit.Panel1.Controls.Add(historyPanel);
         var details = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 1, RowCount = 2, Padding = new Padding(6) };
@@ -142,7 +151,7 @@ internal sealed class StudioForm : Form
     }
     private void BuildTabs()
     {
-        var overview = new TabPage("Overview"); var layout = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 1, RowCount = 5 };
+        var overview = new TabPage("Metrics"); var layout = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 1, RowCount = 5 };
         layout.RowStyles.Add(new(SizeType.AutoSize)); layout.RowStyles.Add(new(SizeType.Percent, 65)); layout.RowStyles.Add(new(SizeType.Absolute, 36)); layout.RowStyles.Add(new(SizeType.Absolute, 28)); layout.RowStyles.Add(new(SizeType.Percent, 35));
         layout.Controls.Add(Flow(metric, metricValue), 0, 0); layout.Controls.Add(chart, 0, 1); layout.Controls.Add(scrubber, 0, 2); layout.Controls.Add(pointLabel, 0, 3);
         signals.Columns.Add("Signal", "Measurement"); signals.Columns.Add("Value", "Latest value"); layout.Controls.Add(signals, 0, 4); overview.Controls.Add(layout); tabs.TabPages.Add(overview);
@@ -150,25 +159,32 @@ internal sealed class StudioForm : Form
         logPanel.RowStyles.Add(new(SizeType.AutoSize)); logPanel.RowStyles.Add(new(SizeType.Percent, 100));
         var saveLogs = Button("Save console…"); saveLogs.Click += (_, _) => SaveText(console.Text, "console.txt");
         logPanel.Controls.Add(Flow(logFilter, follow, saveLogs), 0, 0); logPanel.Controls.Add(console, 0, 1); logs.Controls.Add(logPanel); tabs.TabPages.Add(logs);
-        var artifacts = new TabPage("Files"); var filePanel = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 1, RowCount = 3 };
+        var artifacts = new TabPage("Output files"); var filePanel = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 1, RowCount = 3 };
         filePanel.RowStyles.Add(new(SizeType.Absolute, 36)); filePanel.RowStyles.Add(new(SizeType.Percent, 100)); filePanel.RowStyles.Add(new(SizeType.AutoSize));
         filePanel.Controls.Add(fileFilter, 0, 0); filePanel.Controls.Add(fileList, 0, 1); filePanel.Controls.Add(Flow(download), 0, 2); artifacts.Controls.Add(filePanel); tabs.TabPages.Add(artifacts);
-        var hardwareTab = new TabPage("Hardware"); hardwareTab.Controls.Add(hardware); tabs.TabPages.Add(hardwareTab);
+
     }
     private void FitLayout()
     {
         if (ClientSize.Width < 1 || ClientSize.Height < 1) return;
         notice.MaximumSize = new Size(Math.Max(1, ClientSize.Width), 0);
         var compact = ClientSize.Width < 760;
-        var mainOrientation = compact ? Orientation.Horizontal : Orientation.Vertical;
-        if (projectsSplit.Orientation != mainOrientation) projectsSplit.Orientation = mainOrientation;
-        var extent = compact ? projectsSplit.Height : projectsSplit.Width;
-        if (extent > 180) projectsSplit.SplitterDistance = Math.Clamp(compact ? 125 : 195, 40, Math.Max(40, extent - 150));
-        var narrowDetails = ClientSize.Width < 1150;
-        var orientation = narrowDetails ? Orientation.Horizontal : Orientation.Vertical;
-        if (jobsSplit.Orientation != orientation) jobsSplit.Orientation = orientation;
-        var size = narrowDetails ? jobsSplit.Height : jobsSplit.Width;
-        if (size > 160) jobsSplit.SplitterDistance = Math.Clamp(narrowDetails ? Math.Min(170, size / 3) : 340, 40, Math.Max(40, size - 120));
+        SetSplit(projectsSplit, compact ? Orientation.Horizontal : Orientation.Vertical, compact ? 125 : 195);
+        var narrow = ClientSize.Width < 1150;
+        SetSplit(jobsSplit, narrow ? Orientation.Horizontal : Orientation.Vertical, narrow ? Math.Min(170, jobsSplit.Height / 3) : 340);
+    }
+    private static void SetSplit(SplitContainer split, Orientation orientation, int preferred)
+    {
+        // Docked tabs may still be zero-sized while handles/layout are being created.
+        if (split.Width <= split.SplitterWidth + 2 || split.Height <= split.SplitterWidth + 2) return;
+        split.Panel1MinSize = split.Panel2MinSize = 0;
+        if (split.Orientation != orientation)
+        {
+            split.SplitterDistance = 0;
+            split.Orientation = orientation;
+        }
+        var extent = orientation == Orientation.Horizontal ? split.ClientSize.Height : split.ClientSize.Width;
+        split.SplitterDistance = Math.Clamp(preferred, 0, Math.Max(0, extent - split.SplitterWidth));
     }
     private void SelectProject(string? id)
     {
@@ -229,11 +245,10 @@ internal sealed class StudioForm : Form
             }
             finally { updating = false; }
             projectHeading.Text = Project is { } p ? $"{p.Text("name")}\n{p.Text("root")}" : "All jobs · " + projects.Count + " registered projects";
-            jobHeading.Text = Job is { } j ? $"{j.Text("command")} · {j.Text("state")} · {j.Text("id")}\nCreated {j.Date("created_at")}" : "Select a job to inspect metrics, console, and files.";
+            jobHeading.Text = Job is { } j ? $"{j.Text("command")} · {j.Text("state")} · {j.Text("id")}\nCreated {j.Date("created_at")}" : "Select a run from the list to inspect its metrics, console, and output files.";
             RenderJobs(); ApplyControls();
             var llm = Project?["llm"] is JsonObject;
-            if (llm && !tabs.TabPages.Contains(chatTab)) tabs.TabPages.Add(chatTab);
-            if (!llm && tabs.TabPages.Contains(chatTab)) tabs.TabPages.Remove(chatTab);
+
             chat.Bind(llm ? projectId : null, jobId, connected);
             if (health["issues"] is JsonArray issues && issues.Count > 0) notice.Text = string.Join(Environment.NewLine, issues.Select(i => i.Text("message")));
             if (Job is not { } current) return;

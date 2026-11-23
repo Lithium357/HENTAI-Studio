@@ -87,14 +87,21 @@ internal static class NativeTests
         Check(gpuGrid.Rows[0].Cells[2].Value?.ToString() == 0.0.ToString("N1"), "Idle GPU utilization is zero");
         Check(gpuGrid.Rows[0].Cells[6].Value?.ToString() == "—", "Missing sensors remain unavailable");
         list.SelectedIndex = 2;
-        var tabs = Descendants(form).OfType<TabControl>().First();
-        await UntilAsync(() => tabs.TabPages.Cast<TabPage>().Any(p => p.Text == "Chat tester"));
-        var chatPage = tabs.TabPages.Cast<TabPage>().Single(p => p.Text == "Chat tester");
+        var tabs = Descendants(form).OfType<TabControl>().Single(c => c.Name == "WorkspaceViews");
+        await UntilAsync(() => tabs.TabPages.Cast<TabPage>().Any(p => p.Text == "Test model"));
+        var chatPage = tabs.TabPages.Cast<TabPage>().Single(p => p.Text == "Test model");
         tabs.SelectedTab = chatPage;
         var chat = chatPage.Controls.OfType<NativeChat>().Single();
         await UntilAsync(() => chat.Visible);
         Button Find(string name) => Descendants(chat).OfType<Button>().Single(b => b.Text == name);
-        Descendants(chat).OfType<ComboBox>().First().SelectedIndex = 1;
+        await UntilAsync(() => Find("Load latest checkpoint").Enabled);
+        Find("Load latest checkpoint").PerformClick();
+        await UntilAsync(() => Find("Send prompt").Enabled);
+        Check(Descendants(chat).OfType<Label>().Any(l => l.Text.Contains("latest/checkpoint-200")), "Latest checkpoint loads without typing a directory");
+        await UntilAsync(() => Find("Unload model").Enabled); Find("Unload model").PerformClick();
+        await UntilAsync(() => Find("Load checkpoint").Enabled);
+        Descendants(chat).OfType<CheckBox>().Single(c => c.Text.StartsWith("Advanced options")).Checked = true;
+        Descendants(chat).OfType<ComboBox>().Single(c => c.Items.Contains("Local directory")).SelectedIndex = 1;
         Descendants(chat).OfType<TextBox>().Single(t => t.PlaceholderText == "Model directory or checkpoint-N").Text = "/demo/model";
         await UntilAsync(() => Find("Load checkpoint").CanSelect && Find("Load checkpoint").Enabled);
         Find("Load checkpoint").Focus();
@@ -108,6 +115,11 @@ internal static class NativeTests
         await UntilAsync(() => Find("Unload model").Enabled); Find("Unload model").PerformClick();
         await UntilAsync(() => Find("Load checkpoint").Enabled);
         Check(!Find("Send prompt").Enabled, "Native chat disables generation after unload");
+        var automatic = Descendants(chat).OfType<CheckBox>().Single(c => c.Text.StartsWith("Auto-load latest"));
+        automatic.Checked = true;
+        await UntilAsync(() => Find("Send prompt").Enabled);
+        Check(true, "Opt-in automatic checkpoint loading enables the tester");
+        automatic.Checked = false;
     }
     private static async Task CheckApi(Uri origin)
     {
