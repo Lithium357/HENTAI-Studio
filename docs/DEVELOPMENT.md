@@ -40,3 +40,7 @@ After the browser dependencies above are installed, run `npm run docs:screenshot
 `npm run test:llm-browser` exercises the scratch profile form, explicit checkpoint loading, chat history, failure handling, project isolation, and mobile layout against a temporary server with a fake inference worker. It never loads a model or uses the GPU.
 
 With the optional LLM dependencies installed, run `STUDIO_TEST_LLM=1 python -m pytest tests/test_llm_runtime.py` (set `$env:STUDIO_TEST_LLM = '1'` first in PowerShell). This test creates a tiny tokenizer and architecture locally, trains random weights on CPU, resumes a saved checkpoint, and generates text through the real inference worker. Set `CUDA_VISIBLE_DEVICES` to an empty value to keep the test explicitly CPU-only. No network access or model download is needed.
+
+## Dense job-history layout
+
+Run `npm run test:history` after installing Playwright. The check serves the real dashboard with 11 demo jobs and long project names, then verifies card containment, non-overlap, filtering, selection, and scrolling at desktop, short-window, split-screen, and phone sizes. It uses no training workspace or live service. `STUDIO_SCREENSHOT` optionally captures the repaired history panel.

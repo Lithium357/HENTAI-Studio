@@ -6,7 +6,8 @@
     "test": "node --test tests/frontend/*.test.mjs",
     "test:browser": "node tests/browser/dashboard.mjs",
     "docs:screenshots": "node tests/browser/capture-docs.mjs",
-    "test:llm-browser": "node tests/browser/llm.mjs"
+    "test:llm-browser": "node tests/browser/llm.mjs",
+    "test:history": "node tests/browser/history.mjs"
   },
   "devDependencies": {
     "playwright": "1.62.1"

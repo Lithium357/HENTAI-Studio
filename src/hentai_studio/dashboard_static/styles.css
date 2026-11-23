@@ -546,13 +546,18 @@ main {
 }
 
 #jobs {
-  display: flex;
-  flex-direction: column;
+  display: grid;
+  grid-auto-rows: max-content;
+  align-content: start;
+  min-height: 0;
   gap: 7px
 }
 
 .job-item {
-  flex-shrink: 0;
+  flex: 0 0 auto;
+  height: auto;
+  align-content: start;
+  line-height: 1.5;
   width: 100%;
   display: block;
   text-align: left;
@@ -594,6 +599,7 @@ main {
 }
 
 .job-project {
+  display: block;
   font-size: 10px;
   color: #c4c5cc;
   margin-top: 7px
@@ -1597,7 +1603,7 @@ button.stop-action.available:hover { background: #71333e; border-color: #ed8f9f;
 .launch-definition .hint { font-size: 12px; }
 @media(min-width:1000px) {
   .history { position: sticky; top: 90px; }
-  #jobs { max-height: calc(100vh - 280px); overflow: auto; }
+  #jobs { display: grid; grid-auto-rows: max-content; max-height: max(180px, calc(100vh - 280px)); overflow: auto; scrollbar-gutter: stable; }
   .job-summary .eyebrow { display: none; }
   .job-summary { padding: 12px 18px; }
   .job-summary .section-head { margin-bottom: 6px; }
