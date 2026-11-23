@@ -123,10 +123,3 @@ internal static class NativeTests
         try { await api.Request("/api/health", cancellation.Token); throw new Exception("Cancellation ignored"); } catch (OperationCanceledException) { checks++; }
     }
 }
-
-
-
-
-
-
-
