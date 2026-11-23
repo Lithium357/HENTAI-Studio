@@ -12,9 +12,19 @@ Discovery considers this project's runs from newest to oldest by creation time (
 
 Candidates need a valid `config.json` and full `model.safetensors` or `pytorch_model.bin` weights, or a complete corresponding shard index and every referenced shard. Safetensors headers and data extents are checked without loading tensors; truncated ZIP saves are rejected. Weights and metadata must remain inside the run's output directory. In active runs, `checkpoint-N/trainer_state.json` must also report the matching global step, so a save still in progress is skipped. Custom trainers without this completion marker can use manual loading after their save completes. The inference worker performs the final model compatibility validation.
 
-CPU is the default and can be used while training continues. GPU testing retains the existing training-conflict checks. Loading the same checkpoint again reuses its worker and keeps the conversation; switching to different weights clears the UI conversation. Latest-loading can replace the selected project's idle test model, but never another project's model or a trainer. If no complete save exists yet, the tester explains that it is waiting for a checkpoint.
+CPU is the default and can be used while training continues. GPU sampling can explicitly share the GPU with training using the option below. Loading the same checkpoint again reuses its worker and keeps the conversation; switching to different weights clears the UI conversation. Latest-loading can replace the selected project's idle test model, but never another project's model or a trainer. If no complete save exists yet, the tester explains that it is waiting for a checkpoint.
 
 The latest endpoints require Studio backend **0.9 or newer**. Update a remote backend's package and restart only its Studio API server, preserving the existing workspace and independent training supervisors.
+
+## CPU and GPU sampling
+
+Use **Sampling** in the tester to choose CPU or GPU, then load/reload the checkpoint to apply the choice. CPU is the default and leaves GPU training running. For concurrent GPU inference, select GPU and check **Allow GPU sampling alongside training**. The loaded-model status identifies CPU, reserved GPU, or shared GPU sampling. Shared sampling uses GPU memory and compute alongside the trainer, so sufficient free VRAM is needed.
+
+Studio 0.9.1 adds `allow_training_overlap` to both `/chat/load` and `/chat/load-latest`. It defaults to false. With `device: "cuda"` and `allow_training_overlap: true`, loading/generating does not require training to stop, and the loaded test model does not block starting additional training. Without the flag, the GPU remains reserved for sampling and the existing mutual-exclusion policy applies. `GET /chat` reports the effective flag; changing the selection in the UI takes effect when loading/reloading. Sampling never sends a stop command to trainers.
+
+```json
+{"device":"cuda","allow_training_overlap":true}
+```
 
 ## Prepare the training environment
 

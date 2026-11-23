@@ -206,3 +206,49 @@ def test_dataset_formatting_is_shared_by_train_and_chat(tmp_path):
     path.write_text("{bad json}\n")
     with pytest.raises(ValueError, match="line 1"):
         list(read_records(path))
+
+
+def test_cpu_and_opt_in_gpu_sampling_preserve_active_training(
+    client, tmp_path, monkeypatch
+):
+    client.post("/api/projects", json=definition(tmp_path))
+    (tmp_path / "model").mkdir()
+    (tmp_path / "model/config.json").write_text("{}")
+    runner = tmp_path / "fake-sampling.py"
+    runner.write_text(
+        "import sys,json\njson.loads(sys.stdin.readline())\nprint(json.dumps({'ready':True}),flush=True)\nfor line in sys.stdin:\n json.loads(line)\n print(json.dumps({'content':'sample','tokens':1}),flush=True)\n"
+    )
+    chat = client.app.state.chat
+    chat.runner = runner
+    workspace = client.app.state.workspace
+    monkeypatch.setattr(
+        workspace,
+        "list_jobs",
+        lambda: [SimpleNamespace(state="running", has_live_processes=True)],
+    )
+    workspace.stop_job = Mock(
+        side_effect=AssertionError("Sampling must not stop training")
+    )
+    route = "/api/projects/scratch/chat/load"
+    assert (
+        client.post(route, json={"checkpoint": "model", "device": "cpu"}).status_code
+        == 200
+    )
+    client.post("/api/projects/scratch/chat/unload")
+    assert (
+        client.post(route, json={"checkpoint": "model", "device": "cuda"}).status_code
+        == 409
+    )
+    loaded = client.post(
+        route,
+        json={"checkpoint": "model", "device": "cuda", "allow_training_overlap": True},
+    )
+    assert loaded.status_code == 200, loaded.text
+    assert loaded.json()["allow_training_overlap"]
+    chat.require_training_available(workspace.get_project("scratch"), None)
+    reply = client.post(
+        "/api/projects/scratch/chat/completions",
+        json={"messages": [{"role": "user", "content": "Test"}]},
+    )
+    assert reply.json()["content"] == "sample"
+    workspace.stop_job.assert_not_called()

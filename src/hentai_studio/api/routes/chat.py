@@ -16,6 +16,7 @@ class ChatLoad(Model):
     job_id: Identifier | None = None
     tokenizer: str = Field(default="", max_length=4096)
     device: Literal["cpu", "cuda"] = "cpu"
+    allow_training_overlap: bool = False
 
 
 class ChatStatus(Model):
@@ -23,12 +24,14 @@ class ChatStatus(Model):
     busy: bool
     checkpoint: str | None
     device: str | None
+    allow_training_overlap: bool = False
 
 
 class ChatLoadLatest(Model):
     job_id: Identifier | None = None
     tokenizer: str = Field(default="", max_length=4096)
     device: Literal["cpu", "cuda"] = "cpu"
+    allow_training_overlap: bool = False
     replace: bool = True
 
 

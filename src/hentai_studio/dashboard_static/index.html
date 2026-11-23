@@ -224,14 +224,14 @@
           <section id="chatPanel" class="panel chat-panel" aria-label="Local model chat tester" hidden>
             <div class="section-head"><div><p class="eyebrow">LOCAL CHECKPOINT PLAYGROUND</p><h2>Talk to your scratch model</h2><p class="panel-description">Load saved weights explicitly. Prompts stay on this machine.</p></div><span id="chatStatus" role="status" class="status">No model loaded</span></div>
             <p class="hint">Load the latest complete save, then type a prompt below. CPU testing can run alongside training.</p>
-            <div class="actions chat-load-actions"><button id="loadLatestChat" class="primary">Load latest checkpoint</button><button id="unloadChat">Unload model</button></div>
+            <div class="actions chat-load-actions"><button id="loadLatestChat" class="primary">Load latest checkpoint</button><label>Sampling<select id="chatDevice"><option value="cpu">CPU (keep training running)</option><option value="cuda">GPU (CUDA / ROCm)</option></select></label><button id="unloadChat">Unload model</button></div>
+            <label class="check" id="shareGpuLabel" hidden><input id="shareGpu" type="checkbox">Allow GPU sampling alongside training (shares GPU memory)</label>
             <label class="check"><input id="autoLatestChat" type="checkbox">Auto-load latest when opening this tester</label>
             <p id="loadedCheckpoint" class="hint" style="overflow-wrap:anywhere"></p>
             <details id="manualChat" class="advanced"><summary>Choose a checkpoint manually</summary>
             <div class="chat-load-grid">
               <label>Checkpoint source<select id="chatSource"><option value="job">Selected job output</option><option value="path">Local directory</option></select></label>
               <label>Checkpoint directory<input id="chatCheckpoint" value="model" placeholder="model or checkpoint-100"></label>
-              <label>Device<select id="chatDevice"><option value="cpu">CPU</option><option value="cuda">GPU (CUDA / ROCm)</option></select></label>
             </div>
             <p id="chatSourceHint" class="hint"></p>
             <div class="actions chat-load-actions"><button id="loadChat">Load selected checkpoint</button></div>

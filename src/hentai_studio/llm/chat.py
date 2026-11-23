@@ -16,11 +16,12 @@ from .checkpoints import latest_checkpoint
 
 
 class Session:
-    def __init__(self, process, checkpoint, device):
+    def __init__(self, process, checkpoint, device, allow_training_overlap=False):
         self.process = process
         self.created = psutil.Process(process.pid).create_time()
         self.checkpoint = str(checkpoint)
         self.device = device
+        self.allow_training_overlap = allow_training_overlap
         self.lock = threading.Lock()
         self.responses = queue.Queue()
         self.ready = False
@@ -80,6 +81,7 @@ class Session:
             "busy": self.lock.locked(),
             "checkpoint": self.checkpoint if alive else None,
             "device": self.device if alive else None,
+            "allow_training_overlap": self.allow_training_overlap if alive else False,
         }
 
 
@@ -148,13 +150,15 @@ class ChatService:
                     "project_changed",
                     "The project changed during model loading. Try again.",
                 )
-            if request.device == "cuda" and any(
-                self.workspace._busy(job) for job in self.workspace.list_jobs()
+            if (
+                request.device == "cuda"
+                and not request.allow_training_overlap
+                and any(self.workspace._busy(job) for job in self.workspace.list_jobs())
             ):
                 raise StudioError(
                     409,
                     "training_active",
-                    "GPU inference is disabled while a training job is active. Use CPU chat or wait for training to finish.",
+                    "Training is active. Choose CPU sampling or explicitly allow GPU sampling alongside training.",
                 )
             existing = self.sessions.get(project.id)
             if existing and existing.process.poll() is None:
@@ -197,7 +201,9 @@ class ChatService:
                         if os.name == "nt"
                         else 0,
                     )
-                session = Session(process, checkpoint, request.device)
+                session = Session(
+                    process, checkpoint, request.device, request.allow_training_overlap
+                )
                 self.sessions[project.id] = session
             except (OSError, psutil.Error) as error:
                 raise StudioError(
@@ -247,13 +253,15 @@ class ChatService:
         # Match the workspace -> chat lock order used by ordinary loads/admission.
         with self.workspace._lock, self.lock:
             existing = self.sessions.get(selection.project_id)
-            if request.device == "cuda" and any(
-                self.workspace._busy(job) for job in self.workspace.list_jobs()
+            if (
+                request.device == "cuda"
+                and not request.allow_training_overlap
+                and any(self.workspace._busy(job) for job in self.workspace.list_jobs())
             ):
                 raise StudioError(
                     409,
                     "training_active",
-                    "GPU inference is disabled while training is active. Use CPU testing.",
+                    "Training is active. Choose CPU sampling or explicitly allow GPU sampling alongside training.",
                 )
             if (
                 existing
@@ -262,6 +270,17 @@ class ChatService:
                 and existing.device == request.device
                 and not request.tokenizer
             ):
+                if (
+                    existing.lock.locked()
+                    and existing.allow_training_overlap
+                    != request.allow_training_overlap
+                ):
+                    raise StudioError(
+                        409,
+                        "inference_busy",
+                        "Wait for the current response before changing GPU sharing.",
+                    )
+                existing.allow_training_overlap = request.allow_training_overlap
                 return {**existing.status(), "selection": selection}
             if existing and existing.process.poll() is None:
                 if not request.replace:
@@ -288,6 +307,7 @@ class ChatService:
                 job_id=selection.job_id,
                 tokenizer=request.tokenizer,
                 device=request.device,
+                allow_training_overlap=request.allow_training_overlap,
             ),
         )
         return {**result, "selection": selection}
@@ -351,13 +371,15 @@ class ChatService:
     def require_training_available(self, project, request):
         with self.lock:
             if any(
-                s.device == "cuda" and s.process.poll() is None
+                s.device == "cuda"
+                and not s.allow_training_overlap
+                and s.process.poll() is None
                 for s in self.sessions.values()
             ):
                 raise StudioError(
                     409,
                     "gpu_chat_active",
-                    "Unload the GPU chat model before starting another job.",
+                    "The test model reserves the GPU. Choose CPU sampling or reload it with GPU sharing enabled before starting training.",
                 )
 
     def close(self):

@@ -120,12 +120,23 @@ class StudioClient:
         )
 
     def load_latest_checkpoint(
-        self, project, *, job_id=None, device="cpu", replace=True
+        self,
+        project,
+        *,
+        job_id=None,
+        device="cpu",
+        replace=True,
+        allow_training_overlap=False,
     ):
         return self.request(
             "POST",
             f"/api/projects/{_id(project)}/chat/load-latest",
-            {"job_id": job_id, "device": device, "replace": replace},
+            {
+                "job_id": job_id,
+                "device": device,
+                "replace": replace,
+                "allow_training_overlap": allow_training_overlap,
+            },
         )
 
     def _pages(self, path, *, page_size=50, **filters):
@@ -263,11 +274,21 @@ class StudioClient:
     def chat_status(self, project):
         return self.request("GET", f"/api/projects/{_id(project)}/chat")
 
-    def load_chat(self, project, checkpoint, *, job=None, device="cpu", tokenizer=""):
+    def load_chat(
+        self,
+        project,
+        checkpoint,
+        *,
+        job=None,
+        device="cpu",
+        tokenizer="",
+        allow_training_overlap=False,
+    ):
         body = {
             "checkpoint": str(checkpoint),
             "device": device,
             "tokenizer": str(tokenizer),
+            "allow_training_overlap": allow_training_overlap,
         }
         if job is not None:
             body["job_id"] = job["id"] if isinstance(job, dict) else job

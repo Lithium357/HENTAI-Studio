@@ -11,6 +11,7 @@ export function bindChat(getState) {
   let loaded = false,
     loadedDevice = null;
   let loadedCheckpoint = "";
+  let loadedOverlap = false;
   const selected = () => getState().projectId;
   const conversation = () => {
     const id = selected();
@@ -46,17 +47,18 @@ export function bindChat(getState) {
     $("clearChat").disabled = busy;
     $("editProject").disabled = !getState().canEdit || loaded;
     $("removeProject").disabled = !getState().canEdit || loaded;
-    if (loaded && loadedDevice === "cuda") {
+    if (loaded && loadedDevice === "cuda" && !loadedOverlap) {
       $("start").disabled = true;
       $("launchHint").textContent = "Unload the GPU chat model before starting a training job.";
       $("start").title = $("launchHint").textContent;
     }
-    for (const id of ["chatSource", "chatCheckpoint", "chatDevice", "chatSystem", "chatTemperature", "chatTokens", "chatPrompt"]) $(id).disabled = busy;
+    for (const id of ["chatSource", "chatCheckpoint", "chatDevice", "shareGpu", "chatSystem", "chatTemperature", "chatTokens", "chatPrompt"]) $(id).disabled = busy;
   }
 
   function showStatus(result) {
     loaded = result.loaded;
     loadedDevice = result.device;
+    loadedOverlap = !!result.allow_training_overlap;
     loadedCheckpoint = result.checkpoint || "";
     $("loadedCheckpoint").textContent = loadedCheckpoint ? "Testing: " + loadedCheckpoint : "No checkpoint loaded yet.";
     $("chatStatus").textContent = loaded ? `Loaded · ${result.device.toUpperCase()}` : "No model loaded";
@@ -151,9 +153,10 @@ export function bindChat(getState) {
   };
   $("jobsTab").onclick = () => setTab("jobs");
   $("chatTab").onclick = () => setTab("chat");
+  $("chatDevice").onchange = () => { $("shareGpuLabel").hidden = $("chatDevice").value !== "cuda"; };
   async function loadLatest() {
     const previous = loadedCheckpoint;
-    const result = await operation("/load-latest", { device: $("chatDevice").value, replace: true }, "Finding and loading latest checkpoint…");
+    const result = await operation("/load-latest", { device: $("chatDevice").value, allow_training_overlap: $("chatDevice").value === "cuda" && $("shareGpu").checked, replace: true }, "Finding and loading latest checkpoint…");
     if (result) {
       if (previous !== result.checkpoint) { conversation().messages = []; messages(); }
       showStatus(result);
@@ -180,7 +183,8 @@ export function bindChat(getState) {
     const result = await operation("/load", {
       checkpoint,
       job_id: job,
-      device: $("chatDevice").value
+      device: $("chatDevice").value,
+      allow_training_overlap: $("chatDevice").value === "cuda" && $("shareGpu").checked
     }, "Loading local checkpoint…");
     if (result) {
       conversation().messages = [];

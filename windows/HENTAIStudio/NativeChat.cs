@@ -8,7 +8,8 @@ internal sealed class NativeChat : UserControl
     private readonly CancellationToken lifetime;
     private readonly Func<Task> refresh;
     private readonly ComboBox source = new() { DropDownStyle = ComboBoxStyle.DropDownList, Width = 180 };
-    private readonly ComboBox device = new() { DropDownStyle = ComboBoxStyle.DropDownList, Width = 110 };
+    private readonly ComboBox device = new() { DropDownStyle = ComboBoxStyle.DropDownList, Width = 200, AccessibleName = "Sampling device" };
+    private readonly CheckBox shareGpu = new() { Text = "Allow GPU sampling alongside training", AutoSize = true, Visible = false };
     private readonly TextBox checkpoint = new() { Text = "model", Width = 260, PlaceholderText = "Model directory or checkpoint-N" };
     private readonly TextBox system = new() { Dock = DockStyle.Fill, PlaceholderText = "Optional system prompt", MaxLength = 8192 };
     private readonly TextBox prompt = new() { Dock = DockStyle.Fill, Multiline = true, ScrollBars = ScrollBars.Vertical, MaxLength = 8192, AccessibleName = "Chat prompt" };
@@ -26,17 +27,24 @@ internal sealed class NativeChat : UserControl
     private string lastError = "";
     private int revision;
     private string loadedCheckpoint = "";
+    private string samplingState = "CPU";
+    private void ReadModelState(JsonNode state)
+    {
+        loaded = state.Flag("loaded"); loadedCheckpoint = state.Text("checkpoint");
+        samplingState = state.Text("device") == "cuda" ? (state.Flag("allow_training_overlap") ? "GPU (shared with training)" : "GPU (reserved for sampling)") : "CPU (training can continue)";
+    }
     private Conversation Current => conversations.TryGetValue(project ?? "", out var value) ? value : conversations[project ?? ""] = new();
 
     public NativeChat(StudioApi api, CancellationToken lifetime, Func<Task> refresh)
     {
         this.api = api; this.lifetime = lifetime; this.refresh = refresh; Dock = DockStyle.Fill;
         source.Items.AddRange(["Selected job output", "Local directory"]); source.SelectedIndex = 0;
-        device.Items.AddRange(["cpu", "cuda"]); device.SelectedIndex = 0;
+        device.Items.AddRange(["CPU (keep training running)", "GPU (CUDA / ROCm)"]); device.SelectedIndex = 0;
+        device.SelectedIndexChanged += (_, _) => shareGpu.Visible = device.SelectedIndex == 1;
         var grid = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 1, RowCount = 8, Padding = new Padding(10) };
         grid.RowStyles.Add(new(SizeType.AutoSize)); grid.RowStyles.Add(new(SizeType.AutoSize)); grid.RowStyles.Add(new(SizeType.Absolute, 48)); grid.RowStyles.Add(new(SizeType.AutoSize)); grid.RowStyles.Add(new(SizeType.AutoSize)); grid.RowStyles.Add(new(SizeType.Percent, 100)); grid.RowStyles.Add(new(SizeType.Absolute, 75)); grid.RowStyles.Add(new(SizeType.AutoSize));
         grid.Controls.Add(new Label { Text = "1. Load the latest saved weights.  2. Type a prompt below.  3. Send it to your model.\nCPU testing can run alongside training. Checkpoints and inference live on the backend machine.", AutoSize = true, Dock = DockStyle.Fill, Padding = new Padding(0, 0, 0, 8) }, 0, 0);
-        grid.Controls.Add(Flow(latest, new Label { Text = "Run on", AutoSize = true, Padding = new Padding(4, 5, 0, 0) }, device, unload, autoLoad), 0, 1);
+        grid.Controls.Add(Flow(latest, new Label { Text = "Sampling", AutoSize = true, Padding = new Padding(4, 5, 0, 0) }, device, shareGpu, unload, autoLoad), 0, 1);
         grid.Controls.Add(status, 0, 2); grid.Controls.Add(Flow(advanced), 0, 3);
         var options = new TableLayoutPanel { AutoSize = true, Dock = DockStyle.Fill, ColumnCount = 1, Visible = false };
         options.Controls.Add(Flow(new Label { Text = "Manual source", AutoSize = true }, source, checkpoint, load));
@@ -51,8 +59,8 @@ internal sealed class NativeChat : UserControl
         load.Click += async (_, _) => await Operation(async (id, conversation) =>
         {
             if (string.IsNullOrWhiteSpace(checkpoint.Text) || source.SelectedIndex == 0 && job is null) throw new InvalidOperationException("Choose a job checkpoint or a saved local model directory.");
-            var result = await api.Request(Path(id) + "/load", lifetime, HttpMethod.Post, new JsonObject { ["checkpoint"] = checkpoint.Text.Trim(), ["job_id"] = source.SelectedIndex == 0 ? job : null, ["device"] = device.SelectedItem?.ToString() });
-            if (id == project) { loaded = result.Flag("loaded"); loadedCheckpoint = result.Text("checkpoint"); conversation.Messages.Clear(); RenderConversation(); }
+            var result = await api.Request(Path(id) + "/load", lifetime, HttpMethod.Post, new JsonObject { ["checkpoint"] = checkpoint.Text.Trim(), ["job_id"] = source.SelectedIndex == 0 ? job : null, ["device"] = SamplingDevice, ["allow_training_overlap"] = SharedGpu });
+            if (id == project) { ReadModelState(result); conversation.Messages.Clear(); RenderConversation(); }
             await refresh();
         }, "Loading local checkpoint…");
         unload.Click += async (_, _) => await Operation(async (id, _) => { await api.Request(Path(id) + "/unload", lifetime, HttpMethod.Post); if (id == project) loaded = false; await refresh(); }, "Unloading model…");
@@ -78,16 +86,18 @@ internal sealed class NativeChat : UserControl
     }
     private static FlowLayoutPanel Flow(params Control[] controls) { var panel = new FlowLayoutPanel { Dock = DockStyle.Fill, AutoSize = true, WrapContents = true }; panel.Controls.AddRange(controls); return panel; }
     private static string Path(string id) => StudioApi.ProjectPath(id) + "/chat";
+    private string SamplingDevice => device.SelectedIndex == 1 ? "cuda" : "cpu";
+    private bool SharedGpu => device.SelectedIndex == 1 && shareGpu.Checked;
     private Task AutoLoadLatest() => autoLoad.Checked && Visible && project is not null && connected && !busy ? LoadLatest() : Task.CompletedTask;
     private async Task LoadLatest()
     {
         await Operation(async (id, conversation) =>
         {
-            var result = await api.Request(Path(id) + "/load-latest", lifetime, HttpMethod.Post, new JsonObject { ["device"] = device.SelectedItem?.ToString(), ["replace"] = true });
+            var result = await api.Request(Path(id) + "/load-latest", lifetime, HttpMethod.Post, new JsonObject { ["device"] = SamplingDevice, ["allow_training_overlap"] = SharedGpu, ["replace"] = true });
             if (id == project)
             {
                 if (loadedCheckpoint != result.Text("checkpoint")) { conversation.Messages.Clear(); RenderConversation(); }
-                loaded = result.Flag("loaded"); loadedCheckpoint = result.Text("checkpoint");
+                ReadModelState(result);
             }
             await refresh();
         }, "Finding and loading the latest complete checkpoint…");
@@ -117,9 +127,8 @@ internal sealed class NativeChat : UserControl
             var state = await api.Request(Path(id), timeout.Token);
             if (!IsDisposed && project == id && version == revision && !busy)
             {
-                loaded = state.Flag("loaded");
-                loadedCheckpoint = state.Text("checkpoint");
-                if (lastError.Length == 0) status.Text = loaded ? "Loaded · " + state.Text("device") + " · " + state.Text("checkpoint") : "No model loaded. CPU is the default.";
+                ReadModelState(state);
+                if (lastError.Length == 0) status.Text = loaded ? "Loaded · " + samplingState + " · " + loadedCheckpoint : "No model loaded. CPU is the default.";
                 ApplyControls();
             }
         }
@@ -130,7 +139,7 @@ internal sealed class NativeChat : UserControl
     {
         if (busy || project is null || !connected) return;
         var id = project; var conversation = Current; revision++; busy = true; lastError = ""; status.Text = label; ApplyControls();
-        try { await action(id, conversation); if (!IsDisposed && project == id) status.Text = loaded ? "Ready · " + loadedCheckpoint + " · type a prompt below" : "Model unloaded. Load the latest checkpoint to test again."; }
+        try { await action(id, conversation); if (!IsDisposed && project == id) status.Text = loaded ? "Ready · " + samplingState + " · " + loadedCheckpoint : "Model unloaded. Load the latest checkpoint to test again."; }
         catch (Exception error) { if (!IsDisposed && project == id) { lastError = error.Message; status.Text = lastError; } }
         finally { busy = false; if (!IsDisposed) ApplyControls(); }
     }
@@ -139,6 +148,7 @@ internal sealed class NativeChat : UserControl
         var enabled = project is not null && connected && !busy;
         load.Enabled = enabled && !loaded; unload.Enabled = send.Enabled = enabled && loaded; clear.Enabled = !busy;
         latest.Enabled = enabled; autoLoad.Enabled = !busy && project is not null;
+        shareGpu.Enabled = !busy;
         source.Enabled = checkpoint.Enabled = device.Enabled = system.Enabled = prompt.Enabled = temperature.Enabled = tokens.Enabled = !busy;
     }
     private void RenderConversation()

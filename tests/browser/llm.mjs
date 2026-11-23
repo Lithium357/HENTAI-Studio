@@ -76,8 +76,13 @@ try {
   await page.locator('#loadChat').click();
   await page.waitForFunction(() => document.getElementById('chatError').textContent.includes('config.json'));
   await page.locator('#chatCheckpoint').fill(checkpoint);
+  await page.locator('#chatDevice').selectOption('cuda');
+  await page.locator('#shareGpu').check();
   await page.locator('#loadChat').click();
   await page.waitForFunction(() => !document.getElementById('sendChat').disabled);
+  const samplingProject = (await (await page.request.get(base + '/api/projects')).json()).items.find(project => project.llm);
+  const samplingState = await (await page.request.get(base + `/api/projects/${samplingProject.id}/chat`)).json();
+  assert.equal(samplingState.allow_training_overlap, true);
   await page.locator('#chatPrompt').fill('hello <img src=x onerror=alert(1)>');
   await page.locator('#sendChat').click();
   await page.waitForFunction(() => document.querySelectorAll('.chat-message.assistant').length === 1);

@@ -210,3 +210,15 @@ def test_load_latest_is_idempotent_and_replaces_only_idle_inference(
         == "training_active"
     )
     assert chat.sessions["scratch"] is current and current.status()["loaded"]
+    shared = client.post(route, json={"device": "cuda", "allow_training_overlap": True})
+    assert shared.status_code == 200, shared.text
+    assert shared.json()["allow_training_overlap"] is True
+    assert shared.json()["device"] == "cuda"
+    shared_session = chat.sessions["scratch"]
+    chat.require_training_available(workspace.get_project("scratch"), None)
+    assert (
+        client.post(route, json={"device": "cuda"}).json()["error"]["code"]
+        == "training_active"
+    )
+    assert chat.sessions["scratch"] is shared_session
+    workspace.stop_job.assert_not_called()

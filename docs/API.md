@@ -6,6 +6,8 @@ Register a project once, start its commands as jobs, and follow the returned job
 
 ## Python: the complete workflow
 
+Sampling device selection supports `"device":"cpu"` (default) or `"device":"cuda"`. Studio 0.9.1 adds `"allow_training_overlap":true` to both checkpoint load operations for explicitly shared GPU sampling. Status responses report that flag, and shared GPU sessions do not block training admission. Python helpers accept `allow_training_overlap=True` as well. See [CPU and GPU sampling](LLM.md#cpu-and-gpu-sampling).
+
 For the model tester, `GET /api/projects/{project_id}/chat/checkpoints/latest` discovers a complete checkpoint without loading it. `POST /api/projects/{project_id}/chat/load-latest` discovers and loads it in one operation:
 
 ```http
@@ -15,7 +17,7 @@ Content-Type: application/json
 {"device":"cpu","replace":true}
 ```
 
-The body is optional. `job_id` limits discovery to one run; otherwise the project is searched. `tokenizer` optionally overrides the project's tokenizer path. The response contains `loaded`, `busy`, `checkpoint`, `device`, and `selection` (`project_id`, `job_id`, relative `checkpoint`, `step`, and `job_created_at`). The same already-loaded checkpoint/device is reused. A newer checkpoint replaces only this project's idle inference worker when `replace` is true; false returns `409 model_loaded`. Busy generation returns `409 inference_busy`; GPU loading during training returns `409 training_active`. No available complete save returns `404 checkpoint_not_found`. No training job is stopped.
+The body is optional. `job_id` limits discovery to one run; otherwise the project is searched. `tokenizer` optionally overrides the project's tokenizer path. The response contains `loaded`, `busy`, `checkpoint`, `device`, and `selection` (`project_id`, `job_id`, relative `checkpoint`, `step`, and `job_created_at`). The same already-loaded checkpoint/device is reused. A newer checkpoint replaces only this project's idle inference worker when `replace` is true; false returns `409 model_loaded`. Busy generation returns `409 inference_busy`; GPU loading during training without sharing permission returns `409 training_active`. No available complete save returns `404 checkpoint_not_found`. No training job is stopped.
 
 ```python
 selection = studio.latest_checkpoint("my-model")

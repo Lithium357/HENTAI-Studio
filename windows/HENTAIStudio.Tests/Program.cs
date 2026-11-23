@@ -120,6 +120,15 @@ internal static class NativeTests
         await UntilAsync(() => Find("Send prompt").Enabled);
         Check(true, "Opt-in automatic checkpoint loading enables the tester");
         automatic.Checked = false;
+        var sampling = Descendants(chat).OfType<ComboBox>().Single(c => c.AccessibleName == "Sampling device");
+        Check(sampling.SelectedIndex == 0, "CPU sampling is the default");
+        sampling.SelectedIndex = 1;
+        var sharedGpu = Descendants(chat).OfType<CheckBox>().Single(c => c.Text == "Allow GPU sampling alongside training");
+        Check(sharedGpu.Visible, "GPU sampling exposes the training-sharing option");
+        sharedGpu.Checked = true;
+        Find("Load latest checkpoint").PerformClick();
+        await UntilAsync(() => Descendants(chat).OfType<Label>().Any(l => l.Text.Contains("GPU (shared with training)")));
+        Check(true, "GPU sampling preference and sharing flag reach the backend");
     }
     private static async Task CheckApi(Uri origin)
     {

@@ -60,6 +60,8 @@ jobs = [
     for i in range(11)
 ]
 loaded = False
+loaded_device = "cpu"
+loaded_overlap = False
 
 
 class API(BaseHTTPRequestHandler):
@@ -191,7 +193,8 @@ class API(BaseHTTPRequestHandler):
                     "loaded": loaded,
                     "busy": False,
                     "checkpoint": "/demo/model" if loaded else None,
-                    "device": "cpu" if loaded else None,
+                    "device": loaded_device if loaded else None,
+                    "allow_training_overlap": loaded_overlap if loaded else False,
                 },
             )
         if path == "/api/repeated":
@@ -212,19 +215,23 @@ class API(BaseHTTPRequestHandler):
         return self.response(404, {"error": {"message": "No such resource"}})
 
     def do_POST(self):
-        global loaded
+        global loaded, loaded_device, loaded_overlap
         self.log_request_path()
         path = urlsplit(self.path).path
         body = json.loads(
             self.rfile.read(int(self.headers.get("Content-Length", 0))) or "{}"
         )
+        if path.endswith(("/chat/load-latest", "/chat/load")):
+            loaded_device = body.get("device", "cpu")
+            loaded_overlap = body.get("allow_training_overlap", False)
         if path.endswith("/chat/load-latest"):
             loaded = True
             return self.response(
                 200,
                 {
                     "loaded": True,
-                    "device": "cpu",
+                    "device": loaded_device,
+                    "allow_training_overlap": loaded_overlap,
                     "checkpoint": "/demo/latest/checkpoint-200",
                     "busy": False,
                     "selection": {
@@ -240,7 +247,8 @@ class API(BaseHTTPRequestHandler):
                 200,
                 {
                     "loaded": True,
-                    "device": "cpu",
+                    "device": loaded_device,
+                    "allow_training_overlap": loaded_overlap,
                     "checkpoint": "/demo/model",
                     "busy": False,
                 },
