@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.9.2 — 2026-11-25
+
+- Defined Studio's acronym as **Hub for Experiments, Neural Training, Analysis & Inference**, independently of the original HENTAI model.
+- Updated the native connection screen and About dialog, browser branding/accessibility metadata, CLI help, API description, package/executable metadata, installer shortcut descriptions, documentation, and repository banner.
+- Adopted the tagline **Your models. Your hardware. One workspace.**
+
 ## 0.9.1 — 2026-11-23
 
 - Added an explicit **Sampling** selector to the native and browser model testers: CPU by default, or GPU through CUDA/ROCm.

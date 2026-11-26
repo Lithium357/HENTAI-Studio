@@ -1,6 +1,6 @@
-"""Standalone training project management."""
+"""HENTAI Studio: Hub for Experiments, Neural Training, Analysis & Inference."""
 
-__version__ = "0.9.1"
+__version__ = "0.9.2"
 
 from .client import StudioAPIError, StudioClient
 

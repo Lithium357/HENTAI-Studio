@@ -1,15 +1,16 @@
 <p align="center">
-  <img src="docs/assets/banner.svg" alt="HENTAI Studio — Your training. One workspace." width="100%">
+  <img src="docs/assets/banner.svg" alt="HENTAI Studio — Hub for Experiments, Neural Training, Analysis &amp; Inference. Your models. Your hardware. One workspace." width="100%">
 </p>
 
 <p align="center">
-  <strong>A standalone training manager with a native Windows app.</strong><br>
+  <strong>Hub for Experiments, Neural Training, Analysis &amp; Inference</strong><br>
+  <em>Your models. Your hardware. One workspace.</em><br>
   Manage your own trainers locally or on a cloud backend. Inspect runs, test saved models, and monitor hardware.
 </p>
 
 <p align="center">
   <a href="https://github.com/Lithium357/HENTAI-Studio/actions/workflows/tests.yml"><img src="https://github.com/Lithium357/HENTAI-Studio/actions/workflows/tests.yml/badge.svg?branch=main" alt="Studio tests"></a>
-  <a href="CHANGELOG.md"><img src="https://img.shields.io/badge/Studio-0.9.1-e9a17b?style=flat&labelColor=24262d" alt="Studio 0.9.1"></a>
+  <a href="CHANGELOG.md"><img src="https://img.shields.io/badge/Studio-0.9.2-e9a17b?style=flat&labelColor=24262d" alt="Studio 0.9.2"></a>
   <img src="https://img.shields.io/badge/Windows%20UI-Native%20.NET%208-94cbb1?style=flat&labelColor=24262d" alt="Native .NET 8 Windows app">
   <img src="https://img.shields.io/badge/Python-3.11%2B-e9a17b?style=flat&labelColor=24262d" alt="Python 3.11 and newer">
   <img src="https://img.shields.io/badge/Windows%20%C2%B7%20Linux%20%C2%B7%20WSL-Local-94cbb1?style=flat&labelColor=24262d" alt="Runs locally on Windows, Linux, and WSL">
@@ -51,6 +52,8 @@ The default installation needs no training libraries. Optional [scratch LLM supp
 
 Studio is independent of the HENTAI diffusion model and Lucy. It runs your external commands and keeps each project's training environment separate from the app.
 
+**HENTAI** now stands for **Hub for Experiments, Neural Training, Analysis & Inference**. The Studio name describes this training-management application; the original HENTAI model remains a separate project.
+
 ## The workspace
 
 The Windows app is written in C#/.NET Windows Forms, with native controls and a locally drawn chart. It connects directly to the JSON API and requires no embedded browser or WebView2 Runtime. The browser dashboard remains available separately.
@@ -70,7 +73,7 @@ Choose a project from the sidebar; **All jobs** shows the complete history. **Pr
 - **NVIDIA, AMD, and Intel monitoring:** separate GPU rows with utilization, memory, and available sensors. Missing readings are shown as unavailable; idle readings stay zero. Provider/platform coverage is documented in the [hardware guide](docs/HARDWARE.md).
 - **Independent process lifetime:** closing a window leaves training running. Studio controls trainers through dedicated job supervisors and verified process identities.
 
-See [the changelog](CHANGELOG.md) for changes through **0.9.1**.
+See [the changelog](CHANGELOG.md) for changes through **0.9.2**.
 
 ## Get started
 

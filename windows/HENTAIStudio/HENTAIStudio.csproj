@@ -9,10 +9,10 @@
     <AssemblyName>HENTAI Studio</AssemblyName>
     <RootNamespace>HENTAIStudio</RootNamespace>
     <ApplicationIcon>HENTAIStudio.ico</ApplicationIcon>
-    <Version>0.9.1</Version>
+    <Version>0.9.2</Version>
     <Authors>Lithium357</Authors>
     <Product>HENTAI Studio</Product>
-    <Description>Standalone local training project manager</Description>
+    <Description>Hub for Experiments, Neural Training, Analysis &amp; Inference</Description>
   </PropertyGroup>
 
 </Project>

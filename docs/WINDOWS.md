@@ -1,5 +1,7 @@
 # Windows desktop app
 
+**HENTAI Studio — Hub for Experiments, Neural Training, Analysis & Inference.** Your models. Your hardware. One workspace.
+
 HENTAI Studio's Windows client is a native .NET 8 Windows Forms application. Project lists, job history, dialogs, console output, file downloads, and scratch-model chat use Windows controls. The metric chart is drawn with GDI+. The app does not embed WebView2, Chromium, HTML, or JavaScript, and does not require the WebView2 Runtime.
 
 The desktop client talks to Studio's JSON API. A backend can run on the same computer, in WSL, or on AWS through an SSH tunnel. Paths, commands, checkpoints, and training processes belong to the backend machine. HENTAI Studio does not require the HENTAI diffusion-model repository.

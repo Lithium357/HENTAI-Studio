@@ -1,5 +1,7 @@
 # Studio API 0.9
 
+HENTAI Studio stands for **Hub for Experiments, Neural Training, Analysis & Inference**. This API serves the standalone training manager.
+
 Register a project once, start its commands as jobs, and follow the returned job URL. The API works without any model framework or training-project import. Start `hentai-studio serve`; the default server is `http://127.0.0.1:7860`.
 
 [Interactive docs](http://127.0.0.1:7860/api/docs) describe every request and response. OpenAPI is `/api/openapi.json`, with stable operation IDs for generated clients. JSON fields use snake_case. Internal process IDs, full project snapshots and configured environment values are excluded from job responses.

@@ -34,6 +34,8 @@ internal sealed class PortPicker : Form
             AutoSize = true, AutoSizeMode = AutoSizeMode.GrowAndShrink,
             FlowDirection = FlowDirection.TopDown, WrapContents = false, Padding = new Padding(16)
         };
+        content.Controls.Add(new Label { AutoSize = true, MaximumSize = new Size(360, 0), Text = Branding.Expansion, Font = new Font(Font, FontStyle.Bold), Margin = new Padding(3, 0, 3, 8) });
+        content.Controls.Add(new Label { AutoSize = true, MaximumSize = new Size(360, 0), Text = Branding.Tagline, Margin = new Padding(3, 0, 3, 12) });
         content.Controls.Add(new Label
         {
             AutoSize = true, MaximumSize = new Size(360, 0),

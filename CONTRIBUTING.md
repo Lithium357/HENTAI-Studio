@@ -1,5 +1,7 @@
 # Contributing to HENTAI Studio
 
+**Hub for Experiments, Neural Training, Analysis & Inference.** Your models. Your hardware. One workspace.
+
 Studio is a standalone local project and job manager. Changes to diffusion models, training objectives, datasets, and checkpoint implementations belong in the corresponding trainer repository.
 
 HENTAI Studio is licensed under the [GNU General Public License v3.0](LICENSE). See [source provenance](SOURCE_PROVENANCE.md) for the project’s history and third-party notices.
@@ -7,7 +9,7 @@ HENTAI Studio is licensed under the [GNU General Public License v3.0](LICENSE). 
 ## Before you start
 
 - Discuss one focused problem before doing extensive work.
-- Keep Studio independent of HENTAI, Lucy, and all model frameworks.
+- Keep Studio independent of the original HENTAI model, Lucy, and all model frameworks.
 - Do not submit credentials, private paths, real job logs, datasets, weights, or checkpoints.
 
 ## Work locally

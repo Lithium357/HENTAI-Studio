@@ -1,5 +1,7 @@
 # Source provenance
 
+HENTAI Studio now expands to **Hub for Experiments, Neural Training, Analysis & Inference**. References to `Lithium357/HENTAI` below identify the original model repository and its historical source provenance.
+
 Studio source, assets, Windows launcher, telemetry code, LLM workloads, tests, profiles, and related documentation were extracted from `Lithium357/HENTAI` at commit `b525af1` during the 0.2 repository split. Import namespaces and entry points changed; model/checkpoint formats were preserved.
 
 HENTAI Studio, including the retained first-party material extracted from HENTAI, is licensed under the [GNU General Public License v3.0](LICENSE). At the repository owner’s direction, GPLv3 is now the sole project license and the separate proprietary license has been removed. Earlier revisions retain their historical notices in Git.

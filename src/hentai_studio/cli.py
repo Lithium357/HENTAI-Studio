@@ -3,10 +3,12 @@
 import argparse
 from pathlib import Path
 
+from .branding import EXPANSION, PRODUCT_NAME, TAGLINE
+
 
 def _parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
-        prog="hentai-studio", description="Local training project manager"
+        prog="hentai-studio", description=f"{PRODUCT_NAME} — {EXPANSION}. {TAGLINE}"
     )
     commands = parser.add_subparsers(dest="command", required=True)
     serve = commands.add_parser("serve", help="manage local training projects")

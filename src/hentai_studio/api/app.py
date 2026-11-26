@@ -7,6 +7,7 @@ from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
 from .. import __version__
+from ..branding import EXPANSION, PRODUCT_NAME, TAGLINE
 from ..hardware import HardwareMonitor, HardwareSnapshot
 from ..jobs.workspace import Workspace
 from ..llm.chat import ChatService
@@ -39,7 +40,7 @@ def create_app(
             service.close()
 
     app = FastAPI(
-        title="HENTAI Studio API",
+        title=f"{PRODUCT_NAME} API",
         openapi_tags=[
             {
                 "name": "llm",
@@ -59,7 +60,7 @@ def create_app(
             },
         ],
         version=__version__,
-        description="Standalone project registration and external training jobs. Commands run on the Studio host.",
+        description=f"{EXPANSION}. {TAGLINE}\n\nStandalone project registration and external training jobs. Commands run on the Studio host.",
         docs_url="/api/docs",
         redoc_url=None,
         openapi_url="/api/openapi.json",

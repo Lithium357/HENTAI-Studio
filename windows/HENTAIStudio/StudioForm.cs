@@ -62,7 +62,7 @@ internal sealed class StudioForm : Form
         var menu = new MenuStrip();
         menu.Items.Add("New window…", null, (_, _) => SafeNewWindow());
         menu.Items.Add("Refresh", null, async (_, _) => await RefreshAsync());
-        menu.Items.Add("About", null, (_, _) => MessageBox.Show(this, "HENTAI Studio Native Desktop\nWindows Forms controls and a locally rendered chart.\nConnects to the Studio API; no browser engine is used.", "HENTAI Studio"));
+        menu.Items.Add("About", null, (_, _) => MessageBox.Show(this, $"{Branding.Name}\n{Branding.Expansion}\n\n{Branding.Tagline}\n\nManage training runs, test saved models, and monitor local or cloud backends.", Branding.Name));
         MainMenuStrip = menu;
         var status = new StatusStrip(); status.Items.Add(connection);
         var content = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 1, RowCount = 3, Padding = new Padding(8) };

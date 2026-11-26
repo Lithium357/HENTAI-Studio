@@ -36,7 +36,7 @@ foreach ($folder in @([Environment]::GetFolderPath('Programs'), [Environment]::G
     $shortcut.TargetPath = $executable
     $shortcut.WorkingDirectory = $installRoot
     $shortcut.IconLocation = "$executable,0"
-    $shortcut.Description = 'Standalone training project manager'
+    $shortcut.Description = 'Hub for Experiments, Neural Training, Analysis & Inference'
     $shortcut.Save()
 }
 Write-Output $executable
